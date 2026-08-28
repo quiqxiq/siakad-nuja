@@ -18,7 +18,7 @@
     </x-form.select>
 
     <x-form.select label="Hari" name="hari" :selected="old('hari', $jadwal->hari ?? '')" required>
-        @foreach (['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] as $h)
+        @foreach (['Sabtu', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis'] as $h)
             <option value="{{ $h }}" @selected(old('hari', $jadwal->hari ?? '') === $h)>{{ $h }}</option>
         @endforeach
     </x-form.select>

@@ -46,7 +46,7 @@
             <select name="hari" onchange="this.form.submit()"
                 class="block rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 py-2 px-3">
                 <option value="">Semua Hari</option>
-                @foreach (['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] as $h)
+                @foreach (['Sabtu', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis'] as $h)
                     <option value="{{ $h }}" @selected(request('hari') == $h)>{{ $h }}</option>
                 @endforeach
             </select>

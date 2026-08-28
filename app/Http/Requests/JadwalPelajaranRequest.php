@@ -23,12 +23,25 @@ class JadwalPelajaranRequest extends FormRequest
             'kelas_id' => ['required', 'exists:kelas,id'],
             'mapel_id' => ['required', 'exists:mata_pelajaran,id'],
             'guru_id' => ['required', 'exists:guru,id'],
-            'hari' => ['required', Rule::in(['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'])],
+            'hari' => ['required', Rule::in(['Sabtu', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis'])],
             'jam_ke' => ['required', 'integer', 'min:1', 'max:15'],
             'jam_mulai' => ['required', 'date_format:H:i'],
             'jam_selesai' => ['required', 'date_format:H:i', 'after:jam_mulai'],
             'ruangan' => ['nullable', 'string', 'max:50'],
-            'tahun_ajaran' => ['required', 'string', 'regex:/^\d{4}\/\d{4}$/'],
+            'tahun_ajaran' => [
+                'required',
+                'string',
+                'regex:/^\d{4}\/\d{4}$/',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (preg_match('/^(\d{4})\/(\d{4})$/', (string) $value, $matches)) {
+                        $startYear = (int) $matches[1];
+                        $currentYear = (int) date('Y');
+                        if ($startYear > $currentYear) {
+                            $fail("Tahun ajaran tidak boleh melebihi tahun saat ini ({$currentYear}).");
+                        }
+                    }
+                },
+            ],
         ];
     }
 

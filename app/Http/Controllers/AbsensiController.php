@@ -97,7 +97,7 @@ class AbsensiController extends Controller
             $guruList = Guru::orderBy('nama_lengkap')->get();
         }
 
-        $hariList = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        $hariList = ['Sabtu', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis'];
         $statusList = ['Hadir', 'Izin', 'Sakit', 'Alpa'];
 
         return view('absensi.index', compact(

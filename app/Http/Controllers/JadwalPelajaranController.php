@@ -39,7 +39,7 @@ class JadwalPelajaranController extends Controller
             })
             ->when(request('kelas_id'), fn ($query, $id) => $query->where('kelas_id', $id))
             ->when(request('hari'), fn ($query, $hari) => $query->where('hari', $hari))
-            ->orderByRaw("FIELD(hari, 'Senin','Selasa','Rabu','Kamis','Jumat','Sabtu')")
+            ->orderByRaw("FIELD(hari, 'Sabtu','Minggu','Senin','Selasa','Rabu','Kamis')")
             ->orderBy('jam_ke')
             ->paginate(20)
             ->withQueryString();
