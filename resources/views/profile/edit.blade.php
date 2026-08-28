@@ -32,7 +32,7 @@
                     <div class="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
                         <x-form.input label="Nama Lengkap" name="nama" :value="$user->nama" required />
                         <x-form.input label="Email" name="email" type="email" :value="$user->email" required />
-                        <x-form.input label="Nomor HP" name="no_hp" :value="$user->no_hp ?? ''" />
+                        <x-form.input label="Nomor HP" name="no_hp" type="tel" inputmode="numeric" :value="$user->no_hp ?? ''" placeholder="08..." />
                     </div>
                 </div>
 

@@ -24,10 +24,17 @@ class NilaiRequest extends FormRequest
             'mapel_id' => ['required', 'exists:mata_pelajaran,id'],
             'kelas_id' => ['required', 'exists:kelas,id'],
             'semester' => ['required', Rule::in(['Ganjil', 'Genap'])],
-            'tahun_ajaran' => ['required', 'string', 'max:15'],
+            'tahun_ajaran' => ['required', 'string', 'regex:/^\d{4}\/\d{4}$/'],
             'nilai_harian' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'nilai_uts' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'nilai_uas' => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'tahun_ajaran.regex' => 'Format tahun ajaran harus YYYY/YYYY (contoh: 2026/2027).',
         ];
     }
 

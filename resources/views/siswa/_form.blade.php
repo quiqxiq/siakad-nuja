@@ -1,10 +1,10 @@
 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-    <x-form.input label="NIS" name="nis" :value="$siswa->nis ?? ''" required />
+    <x-form.input label="NIS" name="nis" :value="$siswa->nis ?? ''" inputmode="numeric" pattern="[0-9]*" placeholder="contoh: 12345678" required />
     <x-form.input label="Nama Lengkap" name="nama_lengkap" :value="$siswa->nama_lengkap ?? ''" required />
 
     <x-form.select label="Kelas" name="kelas_id" :selected="old('kelas_id', $siswa->kelas_id ?? '')" required>
         @foreach ($kelas as $k)
-            <option value="{{ $k->id }}" @selected(old('kelas_id', $siswa->kelas_id ?? '') == $k->id)>{{ $k->nama_kelas }}</option>
+            <option value="{{ $k->id }}" @selected(old('kelas_id', $siswa->kelas_id ?? '') == $k->id)>{{ $k->nama_lengkap }}</option>
         @endforeach
     </x-form.select>
 
@@ -16,7 +16,7 @@
         <option value="P" @selected(old('jenis_kelamin', $siswa->jenis_kelamin ?? '') === 'P')>Perempuan</option>
     </x-form.select>
 
-    <x-form.input label="Tahun Masuk" name="tahun_masuk" type="number" :value="$siswa->tahun_masuk ?? date('Y')" required />
+    <x-form.input label="Tahun Masuk" name="tahun_masuk" type="number" min="1990" :max="date('Y')" :value="$siswa->tahun_masuk ?? date('Y')" required />
 
     <x-form.select label="Status" name="status" :selected="old('status', $siswa->status ?? 'Aktif')" :placeholder="false">
         @foreach (['Aktif', 'Lulus', 'Pindah', 'Keluar'] as $st)

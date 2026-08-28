@@ -29,12 +29,12 @@ class UserRequest extends FormRequest
             'email' => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($userId)],
             'role' => ['required', Rule::in([User::ROLE_ADMIN, User::ROLE_GURU])],
             'password' => [$isUpdate ? 'nullable' : 'required', 'string', 'min:8'],
-            'no_hp' => ['nullable', 'string', 'max:20'],
+            'no_hp' => ['nullable', 'string', 'regex:/^[0-9+\s-]+$/', 'max:20'],
             'is_active' => ['nullable', 'boolean'],
             'kirim_wa' => ['nullable', 'boolean'],
 
             // Field guru (hanya relevan saat role = guru)
-            'nip' => ['nullable', 'required_if:role,guru', 'string', 'max:30', Rule::unique('guru', 'nip')->ignore($user?->guru?->id)],
+            'nip' => ['nullable', 'required_if:role,guru', 'numeric', 'digits_between:1,30', Rule::unique('guru', 'nip')->ignore($user?->guru?->id)],
             'jabatan' => ['nullable', 'string', 'max:50'],
         ];
     }

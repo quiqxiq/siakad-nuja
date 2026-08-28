@@ -24,7 +24,7 @@ class UpdateProfileRequest extends FormRequest
         return [
             'nama' => ['required', 'string', 'max:150'],
             'email' => ['required', 'email', 'max:150', 'unique:users,email,' . $userId],
-            'no_hp' => ['nullable', 'string', 'max:20'],
+            'no_hp' => ['nullable', 'string', 'regex:/^[0-9+\s-]+$/', 'max:20'],
             'current_password' => ['nullable', 'required_with:password', 'current_password'],
             'password' => ['nullable', 'confirmed', Password::min(8)],
         ];

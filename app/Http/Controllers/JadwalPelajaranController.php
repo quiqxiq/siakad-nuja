@@ -17,32 +17,37 @@ class JadwalPelajaranController extends Controller
     public function index(): View
     {
         $user = request()->user();
+        $isGuru = $user?->isGuru();
+        $userGuruId = $user?->guru?->id;
+
+        $hasFilter = request()->hasAny(['search', 'guru_id', 'kelas_id', 'hari']);
+        $selectedGuruId = request('guru_id');
+
+        if (! $hasFilter && $isGuru && $userGuruId) {
+            $selectedGuruId = (string) $userGuruId;
+        }
 
         $jadwal = JadwalPelajaran::with(['kelas', 'mapel', 'guru'])
-            ->when($user?->isGuru(), function ($query) use ($user): void {
-                $guru = $user->guru;
-                $query->where('guru_id', $guru?->id ?? 0);
+            ->when($selectedGuruId, fn ($query, $id) => $query->where('guru_id', $id))
+            ->when(request('search'), function ($query, $search): void {
+                $query->where(function ($q) use ($search): void {
+                    $q->whereHas('mapel', fn ($sub) => $sub->where('nama_mapel', 'like', "%{$search}%"))
+                      ->orWhereHas('kelas', fn ($sub) => $sub->where('nama_kelas', 'like', "%{$search}%")->orWhere('jenjang', 'like', "%{$search}%"))
+                      ->orWhereHas('guru', fn ($sub) => $sub->where('nama_lengkap', 'like', "%{$search}%"))
+                      ->orWhere('ruangan', 'like', "%{$search}%");
+                });
             })
             ->when(request('kelas_id'), fn ($query, $id) => $query->where('kelas_id', $id))
-            ->when(request('guru_id') && $user?->isAdmin(), fn ($query, $id) => $query->where('guru_id', $id))
             ->when(request('hari'), fn ($query, $hari) => $query->where('hari', $hari))
             ->orderByRaw("FIELD(hari, 'Senin','Selasa','Rabu','Kamis','Jumat','Sabtu')")
             ->orderBy('jam_ke')
             ->paginate(20)
             ->withQueryString();
 
-        if ($user?->isGuru()) {
-            $guruId = $user->guru?->id ?? 0;
-            $kelasList = Kelas::whereIn('id', function ($q) use ($guruId): void {
-                $q->select('kelas_id')->from('jadwal_pelajaran')->where('guru_id', $guruId);
-            })->orWhere('wali_kelas_id', $guruId)->orderBy('nama_kelas')->get();
-        } else {
-            $kelasList = Kelas::orderBy('nama_kelas')->get();
-        }
+        $kelasList = Kelas::orderBy('nama_kelas')->get();
+        $guruList = Guru::orderBy('nama_lengkap')->get();
 
-        $guruList = $user?->isAdmin() ? Guru::orderBy('nama_lengkap')->get() : collect();
-
-        return view('jadwal.index', compact('jadwal', 'kelasList', 'guruList'));
+        return view('jadwal.index', compact('jadwal', 'kelasList', 'guruList', 'selectedGuruId'));
     }
 
     public function create(): View
@@ -59,11 +64,6 @@ class JadwalPelajaranController extends Controller
 
     public function show(JadwalPelajaran $jadwal): View
     {
-        $user = request()->user();
-        if ($user?->isGuru() && $jadwal->guru_id !== $user->guru?->id) {
-            abort(403, 'Anda tidak memiliki akses ke jadwal ini.');
-        }
-
         $jadwal->load('kelas', 'mapel', 'guru');
 
         return view('jadwal.show', compact('jadwal'));

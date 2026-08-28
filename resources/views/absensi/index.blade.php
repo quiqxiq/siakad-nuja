@@ -112,7 +112,7 @@
                     class="block w-full rounded-xl border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 py-2">
                     <option value="">Semua Kelas</option>
                     @foreach ($kelasList as $k)
-                        <option value="{{ $k->id }}" @selected(request('kelas_id') == $k->id)>{{ $k->nama_kelas }} ({{ $k->jenjang }})</option>
+                        <option value="{{ $k->id }}" @selected(request('kelas_id') == $k->id)>{{ $k->nama_lengkap }}</option>
                     @endforeach
                 </select>
             </div>
@@ -217,7 +217,7 @@
                         </td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">
                             <span class="inline-flex items-center rounded-lg bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                                {{ $a->jadwal->kelas->nama_kelas ?? '-' }}
+                                {{ $a->jadwal->kelas->nama_lengkap ?? '-' }}
                             </span>
                         </td>
                         <td class="px-4 py-3 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
@@ -249,7 +249,7 @@
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
                             <p class="font-bold text-slate-900 dark:text-white truncate">{{ $a->siswa->nama_lengkap ?? '-' }}</p>
-                            <p class="text-xs text-slate-400">NIS: {{ $a->siswa->nis ?? '-' }} • Kelas {{ $a->jadwal->kelas->nama_kelas ?? '-' }}</p>
+                            <p class="text-xs text-slate-400">NIS: {{ $a->siswa->nis ?? '-' }} • {{ $a->jadwal->kelas->nama_lengkap ?? '-' }}</p>
                         </div>
                         <div class="flex shrink-0 items-center gap-1">
                             <x-button :href="route('absensi.show', $a)" variant="ghost" size="icon"><x-icon name="eye" class="h-4 w-4" /></x-button>

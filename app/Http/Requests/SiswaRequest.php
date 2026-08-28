@@ -21,8 +21,10 @@ class SiswaRequest extends FormRequest
     {
         $siswaId = $this->route('siswa')?->id;
 
+        $currentYear = (int) date('Y');
+
         return [
-            'nis' => ['required', 'string', 'max:30', Rule::unique('siswa', 'nis')->ignore($siswaId)],
+            'nis' => ['required', 'numeric', 'digits_between:1,30', Rule::unique('siswa', 'nis')->ignore($siswaId)],
             'nama_lengkap' => ['required', 'string', 'max:150'],
             'kelas_id' => ['required', 'exists:kelas,id'],
             'tanggal_lahir' => ['nullable', 'date'],
@@ -30,7 +32,7 @@ class SiswaRequest extends FormRequest
             'alamat' => ['nullable', 'string'],
             'foto' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'status' => ['nullable', Rule::in(['Aktif', 'Lulus', 'Pindah', 'Keluar'])],
-            'tahun_masuk' => ['required', 'integer', 'min:1990', 'max:2100'],
+            'tahun_masuk' => ['required', 'integer', 'min:1990', 'max:' . $currentYear],
         ];
     }
 

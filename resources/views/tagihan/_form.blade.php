@@ -26,7 +26,7 @@
             <x-form.select label="Siswa" name="siswa_id" :selected="old('siswa_id', $tagihan->siswa_id ?? '')" x-bind:disabled="mode === 'massal'">
                 @foreach ($siswaList as $s)
                     <option value="{{ $s->id }}" @selected(old('siswa_id', $tagihan->siswa_id ?? '') == $s->id)>
-                        {{ $s->nama_lengkap }} — {{ $s->kelas->nama_kelas ?? '-' }}
+                        {{ $s->nama_lengkap }} — {{ $s->kelas->nama_lengkap ?? '-' }}
                     </option>
                 @endforeach
             </x-form.select>
@@ -37,7 +37,7 @@
             <x-form.select label="Pilih Kelas (tagihan massal)" name="kelas_id_massal" :selected="old('kelas_id_massal', '')" x-bind:disabled="mode === 'siswa'">
                 <option value="">— Pilih Kelas —</option>
                 @foreach ($kelasList as $k)
-                    <option value="{{ $k->id }}" @selected(old('kelas_id_massal') == $k->id)>{{ $k->nama_kelas }}</option>
+                    <option value="{{ $k->id }}" @selected(old('kelas_id_massal') == $k->id)>{{ $k->nama_lengkap }}</option>
                 @endforeach
             </x-form.select>
             <p class="mt-2 text-sm text-amber-600 dark:text-amber-400">

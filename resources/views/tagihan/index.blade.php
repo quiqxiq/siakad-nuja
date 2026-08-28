@@ -76,7 +76,7 @@
             class="block rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white">
             <option value="">🏫 Semua Kelas</option>
             @foreach ($kelasList as $k)
-                <option value="{{ $k->id }}" @selected(request('kelas_id') == $k->id)>Kelas {{ $k->nama_kelas }}</option>
+                <option value="{{ $k->id }}" @selected(request('kelas_id') == $k->id)>{{ $k->nama_lengkap }}</option>
             @endforeach
         </select>
 
@@ -115,7 +115,7 @@
                             {{ $t->siswa->nama_lengkap ?? '-' }}
                         </td>
                         <td class="px-5 py-3.5 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                            {{ $t->siswa->kelas->nama_kelas ?? '-' }}
+                            {{ $t->siswa->kelas->nama_lengkap ?? '-' }}
                         </td>
                         <td class="px-5 py-3.5 text-sm text-slate-700 dark:text-slate-300">{{ $t->judul }}</td>
                         <td class="px-5 py-3.5 text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ $t->periode }}</td>
@@ -170,7 +170,7 @@
                     </div>
                     <dl class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                         <div><dt class="text-xs text-slate-400">Nominal</dt><dd class="font-semibold text-slate-800 dark:text-white">Rp {{ number_format((float)$t->nominal, 0, ',', '.') }}</dd></div>
-                        <div><dt class="text-xs text-slate-400">Kelas</dt><dd class="text-slate-700 dark:text-slate-300">{{ $t->siswa->kelas->nama_kelas ?? '-' }}</dd></div>
+                        <div><dt class="text-xs text-slate-400">Kelas</dt><dd class="text-slate-700 dark:text-slate-300">{{ $t->siswa->kelas->nama_lengkap ?? '-' }}</dd></div>
                     </dl>
                     <div class="mt-3 flex items-center gap-2">
                         <x-button :href="route('tagihan.show', $t)" variant="ghost" size="sm">Detail</x-button>

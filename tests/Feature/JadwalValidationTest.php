@@ -114,8 +114,8 @@ class JadwalValidationTest extends TestCase
 
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('jadwal_pelajaran', [
-            'jam_mulai' => '07:00:00',
-            'jam_selesai' => '08:40:00',
+            'jam_mulai' => '07:00',
+            'jam_selesai' => '08:40',
         ]);
     }
 }

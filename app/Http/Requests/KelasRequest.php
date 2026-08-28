@@ -23,9 +23,16 @@ class KelasRequest extends FormRequest
             'nama_kelas' => ['required', 'string', 'max:50'],
             'tingkat' => ['required', 'string', 'max:10'],
             'jenjang' => ['required', Rule::in(['SD', 'SMP', 'SMA', 'SMK', 'MI', 'MTs', 'MA'])],
-            'tahun_ajaran' => ['required', 'string', 'max:15'],
+            'tahun_ajaran' => ['required', 'string', 'regex:/^\d{4}\/\d{4}$/'],
             'wali_kelas_id' => ['nullable', 'exists:guru,id'],
             'kapasitas' => ['nullable', 'integer', 'min:1', 'max:255'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'tahun_ajaran.regex' => 'Format tahun ajaran harus YYYY/YYYY (contoh: 2026/2027).',
         ];
     }
 

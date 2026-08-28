@@ -11,12 +11,12 @@
         <x-form.input label="Password" name="password" type="password" autocomplete="new-password"
             hint="{{ isset($user) ? 'Kosongkan bila tidak diubah' : 'Minimal 8 karakter' }}" />
 
-        <x-form.input label="Nomor HP / WhatsApp" name="no_hp" :value="$user->no_hp ?? ''" placeholder="08..." hint="Nomor WhatsApp untuk penerimaan kredensial akun" />
+        <x-form.input label="Nomor HP / WhatsApp" name="no_hp" type="tel" inputmode="numeric" :value="$user->no_hp ?? ''" placeholder="08..." hint="Nomor WhatsApp untuk penerimaan kredensial akun" />
 
         {{-- Field khusus guru --}}
         <template x-if="role === 'guru'">
             <div class="contents">
-                <x-form.input label="NIP" name="nip" :value="$user->guru->nip ?? ''" hint="Wajib diisi untuk guru." />
+                <x-form.input label="NIP" name="nip" inputmode="numeric" pattern="[0-9]*" :value="$user->guru->nip ?? ''" hint="Wajib diisi untuk guru." />
                 <x-form.input label="Jabatan" name="jabatan" :value="$user->guru->jabatan ?? ''" />
             </div>
         </template>

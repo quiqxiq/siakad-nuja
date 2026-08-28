@@ -1,7 +1,7 @@
 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
     <x-form.select label="Kelas" name="kelas_id" :selected="old('kelas_id', $jadwal->kelas_id ?? '')" required>
         @foreach ($kelas as $k)
-            <option value="{{ $k->id }}" @selected(old('kelas_id', $jadwal->kelas_id ?? '') == $k->id)>{{ $k->nama_kelas }}</option>
+            <option value="{{ $k->id }}" @selected(old('kelas_id', $jadwal->kelas_id ?? '') == $k->id)>{{ $k->nama_lengkap }}</option>
         @endforeach
     </x-form.select>
 

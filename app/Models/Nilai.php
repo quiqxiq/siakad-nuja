@@ -56,33 +56,39 @@ class Nilai extends Model
      * Hitung nilai akhir berbobot: harian 30%, UTS 30%, UAS 40%.
      * Mengembalikan null bila ketiga komponen kosong.
      */
-    public static function hitungNilaiAkhir(?float $harian, ?float $uts, ?float $uas): ?float
+    public static function hitungNilaiAkhir(float|int|string|null $harian, float|int|string|null $uts, float|int|string|null $uas): ?float
     {
-        $h = (float) ($harian ?? 0);
-        $u = (float) ($uts ?? 0);
-        $a = (float) ($uas ?? 0);
+        $h = ($harian !== null && $harian !== '') ? (float) $harian : null;
+        $u = ($uts !== null && $uts !== '') ? (float) $uts : null;
+        $a = ($uas !== null && $uas !== '') ? (float) $uas : null;
 
-        if ($h === 0.0 && $u === 0.0 && $a === 0.0) {
+        if ($h === null && $u === null && $a === null) {
             return null;
         }
 
-        return round(($h * 0.3) + ($u * 0.3) + ($a * 0.4), 2);
+        $hVal = $h ?? 0.0;
+        $uVal = $u ?? 0.0;
+        $aVal = $a ?? 0.0;
+
+        return round(($hVal * 0.3) + ($uVal * 0.3) + ($aVal * 0.4), 2);
     }
 
     /**
      * Tentukan predikat huruf dari nilai akhir.
      */
-    public static function hitungPredikat(?float $nilaiAkhir): ?string
+    public static function hitungPredikat(float|int|string|null $nilaiAkhir): ?string
     {
-        if ($nilaiAkhir === null) {
+        if ($nilaiAkhir === null || $nilaiAkhir === '') {
             return null;
         }
 
+        $val = (float) $nilaiAkhir;
+
         return match (true) {
-            $nilaiAkhir >= 90 => 'A',
-            $nilaiAkhir >= 80 => 'B',
-            $nilaiAkhir >= 70 => 'C',
-            $nilaiAkhir >= 60 => 'D',
+            $val >= 90 => 'A',
+            $val >= 80 => 'B',
+            $val >= 70 => 'C',
+            $val >= 60 => 'D',
             default => 'E',
         };
     }

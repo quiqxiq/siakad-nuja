@@ -23,7 +23,7 @@
                     <select name="kelas_id" class="w-full rounded-xl border-slate-200 py-3 px-4 focus:ring-2 focus:ring-brand-500" required>
                         <option value="">-- Pilih Kelas --</option>
                         @foreach($kelas as $k)
-                            <option value="{{ $k->id }}">{{ $k->nama_kelas }} ({{ $k->jenjang }})</option>
+                            <option value="{{ $k->id }}">{{ $k->nama_lengkap }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -64,7 +64,7 @@
                     <select name="kelas_id" class="w-full rounded-xl border-slate-200 py-3 px-4 focus:ring-2 focus:ring-indigo-500" required>
                         <option value="">-- Pilih Kelas --</option>
                         @foreach($kelas as $k)
-                            <option value="{{ $k->id }}">{{ $k->nama_kelas }} ({{ $k->jenjang }})</option>
+                            <option value="{{ $k->id }}">{{ $k->nama_lengkap }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -134,7 +134,7 @@
                         <select name="kelas_id" class="w-full rounded-xl border-slate-200 py-3 px-4 focus:ring-2 focus:ring-amber-500">
                             <option value="">-- Pilih Kelas --</option>
                             @foreach($kelas as $k)
-                                <option value="{{ $k->id }}">Kelas {{ $k->nama_kelas }} ({{ $k->jenjang }})</option>
+                                <option value="{{ $k->id }}">{{ $k->nama_lengkap }}</option>
                             @endforeach
                         </select>
                     </div>

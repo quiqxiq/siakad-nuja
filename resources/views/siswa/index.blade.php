@@ -25,7 +25,7 @@
             class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
             <option value="">Semua Kelas</option>
             @foreach ($kelasList as $k)
-                <option value="{{ $k->id }}" @selected(request('kelas_id') == $k->id)>{{ $k->nama_kelas }}</option>
+                <option value="{{ $k->id }}" @selected(request('kelas_id') == $k->id)>{{ $k->nama_lengkap }}</option>
             @endforeach
         </select>
     </form>
@@ -40,7 +40,7 @@
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40">
                         <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ $s->nis }}</td>
                         <td class="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white whitespace-nowrap">{{ $s->nama_lengkap }}</td>
-                        <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $s->kelas->nama_kelas ?? '-' }}</td>
+                        <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $s->kelas->nama_lengkap ?? '-' }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $s->jenis_kelamin ?? '-' }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $s->tahun_masuk }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
@@ -78,7 +78,7 @@
                         </div>
                     </div>
                     <dl class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                        <div><dt class="text-xs text-slate-400">Kelas</dt><dd class="text-slate-700 dark:text-slate-300">{{ $s->kelas->nama_kelas ?? '-' }}</dd></div>
+                        <div><dt class="text-xs text-slate-400">Kelas</dt><dd class="text-slate-700 dark:text-slate-300">{{ $s->kelas->nama_lengkap ?? '-' }}</dd></div>
                         <div><dt class="text-xs text-slate-400">Status</dt><dd class="text-slate-700 dark:text-slate-300">{{ $s->status ?? 'Aktif' }}</dd></div>
                     </dl>
                 </div>

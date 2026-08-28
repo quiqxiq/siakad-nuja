@@ -15,44 +15,52 @@
     @endif
 </x-page-header>
 
-<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-    @if ($isAdmin && isset($guruList) && $guruList->isNotEmpty())
-        <form method="GET" class="w-full sm:w-auto">
-            @foreach (request()->except(['guru_id', 'page']) as $k => $v)
-                @if (! is_array($v)) <input type="hidden" name="{{ $k }}" value="{{ $v }}"> @endif
-            @endforeach
-            <select name="guru_id" onchange="this.form.submit()"
-                class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
-                <option value="">Semua Guru</option>
-                @foreach ($guruList as $g)
-                    <option value="{{ $g->id }}" @selected(request('guru_id') == $g->id)>{{ $g->nama_lengkap }}</option>
+<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-sm">
+    <form method="GET" action="{{ route('jadwal.index') }}" class="w-full flex flex-col gap-3 sm:flex-row sm:items-center">
+        {{-- Input Pencarian --}}
+        <div class="relative flex-1 min-w-[200px]">
+            <x-icon name="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input type="search" name="search" value="{{ request('search') }}" placeholder="Cari mapel, guru, kelas, ruangan..."
+                class="block w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white pl-9 pr-3.5 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+            @if (isset($guruList) && $guruList->isNotEmpty())
+                <select name="guru_id" onchange="this.form.submit()"
+                    class="block rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 py-2 px-3">
+                    <option value="">Semua Guru</option>
+                    @foreach ($guruList as $g)
+                        <option value="{{ $g->id }}" @selected(($selectedGuruId ?? request('guru_id')) == $g->id)>{{ $g->nama_lengkap }}</option>
+                    @endforeach
+                </select>
+            @endif
+
+            <select name="kelas_id" onchange="this.form.submit()"
+                class="block rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 py-2 px-3">
+                <option value="">Semua Kelas</option>
+                @foreach ($kelasList as $k)
+                    <option value="{{ $k->id }}" @selected(request('kelas_id') == $k->id)>{{ $k->nama_lengkap }}</option>
                 @endforeach
             </select>
-        </form>
-    @endif
-    <form method="GET" class="w-full sm:w-auto">
-        @foreach (request()->except(['kelas_id', 'page']) as $k => $v)
-            @if (! is_array($v)) <input type="hidden" name="{{ $k }}" value="{{ $v }}"> @endif
-        @endforeach
-        <select name="kelas_id" onchange="this.form.submit()"
-            class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
-            <option value="">Semua Kelas</option>
-            @foreach ($kelasList as $k)
-                <option value="{{ $k->id }}" @selected(request('kelas_id') == $k->id)>{{ $k->nama_kelas }}</option>
-            @endforeach
-        </select>
-    </form>
-    <form method="GET" class="w-full sm:w-auto">
-        @foreach (request()->except(['hari', 'page']) as $k => $v)
-            @if (! is_array($v)) <input type="hidden" name="{{ $k }}" value="{{ $v }}"> @endif
-        @endforeach
-        <select name="hari" onchange="this.form.submit()"
-            class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
-            <option value="">Semua Hari</option>
-            @foreach (['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] as $h)
-                <option value="{{ $h }}" @selected(request('hari') == $h)>{{ $h }}</option>
-            @endforeach
-        </select>
+
+            <select name="hari" onchange="this.form.submit()"
+                class="block rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 py-2 px-3">
+                <option value="">Semua Hari</option>
+                @foreach (['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'] as $h)
+                    <option value="{{ $h }}" @selected(request('hari') == $h)>{{ $h }}</option>
+                @endforeach
+            </select>
+
+            <button type="submit" class="px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium text-sm rounded-xl transition shadow-sm flex items-center justify-center gap-1.5">
+                Cari
+            </button>
+
+            @if(request()->hasAny(['search', 'guru_id', 'kelas_id', 'hari']))
+                <a href="{{ route('jadwal.index') }}" class="px-3 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800/50 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/30 transition">
+                    Reset
+                </a>
+            @endif
+        </div>
     </form>
 </div>
 
@@ -67,7 +75,7 @@
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $j->jam_ke }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ \Illuminate\Support\Str::substr($j->jam_mulai, 0, 5) }}&ndash;{{ \Illuminate\Support\Str::substr($j->jam_selesai, 0, 5) }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $j->mapel->nama_mapel ?? '-' }}</td>
-                        <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $j->kelas->nama_kelas ?? '-' }}</td>
+                        <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $j->kelas->nama_lengkap ?? '-' }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $j->guru->nama_lengkap ?? '-' }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $j->ruangan ?? '-' }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
@@ -102,7 +110,7 @@
                     </div>
                     <dl class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                         <div><dt class="text-xs text-slate-400">Waktu</dt><dd class="text-slate-700 dark:text-slate-300">{{ \Illuminate\Support\Str::substr($j->jam_mulai, 0, 5) }}&ndash;{{ \Illuminate\Support\Str::substr($j->jam_selesai, 0, 5) }}</dd></div>
-                        <div><dt class="text-xs text-slate-400">Kelas</dt><dd class="text-slate-700 dark:text-slate-300">{{ $j->kelas->nama_kelas ?? '-' }}</dd></div>
+                        <div><dt class="text-xs text-slate-400">Kelas</dt><dd class="text-slate-700 dark:text-slate-300">{{ $j->kelas->nama_lengkap ?? '-' }}</dd></div>
                         <div><dt class="text-xs text-slate-400">Guru</dt><dd class="text-slate-700 dark:text-slate-300">{{ $j->guru->nama_lengkap ?? '-' }}</dd></div>
                         <div><dt class="text-xs text-slate-400">Ruang</dt><dd class="text-slate-700 dark:text-slate-300">{{ $j->ruangan ?? '-' }}</dd></div>
                     </dl>

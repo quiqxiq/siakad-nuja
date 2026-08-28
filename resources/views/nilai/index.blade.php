@@ -25,7 +25,7 @@
             class="block w-full sm:w-44 rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm py-2 focus:border-brand-500 focus:ring-brand-500">
             <option value="">Semua Kelas</option>
             @foreach ($kelasList as $k)
-                <option value="{{ $k->id }}" @selected(request('kelas_id') == $k->id)>Kelas {{ $k->nama_kelas }} ({{ $k->jenjang }})</option>
+                <option value="{{ $k->id }}" @selected(request('kelas_id') == $k->id)>{{ $k->nama_lengkap }}</option>
             @endforeach
         </select>
 
@@ -50,7 +50,7 @@
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40">
                         <td class="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white whitespace-nowrap">{{ $n->siswa->nama_lengkap ?? '-' }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $n->mapel->nama_mapel ?? '-' }}</td>
-                        <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $n->kelas->nama_kelas ?? '-' }}</td>
+                        <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $n->kelas->nama_lengkap ?? '-' }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $n->semester }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $n->nilai_harian ?? '-' }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $n->nilai_uts ?? '-' }}</td>
@@ -78,7 +78,7 @@
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
                             <p class="font-medium text-slate-900 dark:text-white truncate">{{ $n->siswa->nama_lengkap ?? '-' }}</p>
-                            <p class="text-sm text-slate-500">{{ $n->mapel->nama_mapel ?? '-' }} • {{ $n->kelas->nama_kelas ?? '-' }}</p>
+                            <p class="text-sm text-slate-500">{{ $n->mapel->nama_mapel ?? '-' }} • {{ $n->kelas->nama_lengkap ?? '-' }}</p>
                         </div>
                         <div class="flex shrink-0 items-center gap-1">
                             <x-button :href="route('nilai.show', $n)" variant="ghost" size="icon"><x-icon name="eye" class="h-4 w-4" /></x-button>

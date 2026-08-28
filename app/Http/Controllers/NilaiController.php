@@ -119,11 +119,11 @@ class NilaiController extends Controller
      */
     private function withCalculatedGrades(array $data): array
     {
-        $akhir = Nilai::hitungNilaiAkhir(
-            $data['nilai_harian'] ?? null,
-            $data['nilai_uts'] ?? null,
-            $data['nilai_uas'] ?? null,
-        );
+        $harian = isset($data['nilai_harian']) && $data['nilai_harian'] !== '' && $data['nilai_harian'] !== null ? (float) $data['nilai_harian'] : null;
+        $uts = isset($data['nilai_uts']) && $data['nilai_uts'] !== '' && $data['nilai_uts'] !== null ? (float) $data['nilai_uts'] : null;
+        $uas = isset($data['nilai_uas']) && $data['nilai_uas'] !== '' && $data['nilai_uas'] !== null ? (float) $data['nilai_uas'] : null;
+
+        $akhir = Nilai::hitungNilaiAkhir($harian, $uts, $uas);
 
         $data['nilai_akhir'] = $akhir;
         $data['predikat'] = Nilai::hitungPredikat($akhir);

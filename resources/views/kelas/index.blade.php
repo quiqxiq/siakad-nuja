@@ -26,7 +26,7 @@
             <x-table :headers="['Kelas', 'Tingkat', 'Jenjang', 'Wali Kelas', 'Siswa', 'T.A.', 'Aksi']">
                 @foreach ($kelas as $k)
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40">
-                        <td class="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white whitespace-nowrap">{{ $k->nama_kelas }}</td>
+                        <td class="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white whitespace-nowrap">{{ $k->nama_lengkap }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $k->tingkat }}</td>
                         <td class="px-4 py-3 whitespace-nowrap"><x-badge variant="info">{{ $k->jenjang }}</x-badge></td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $k->waliKelas->nama_lengkap ?? '-' }}</td>
@@ -51,7 +51,7 @@
                 <div class="p-4">
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
-                            <p class="font-medium text-slate-900 dark:text-white truncate">{{ $k->nama_kelas }}</p>
+                            <p class="font-medium text-slate-900 dark:text-white truncate">{{ $k->nama_lengkap }}</p>
                             <p class="text-sm text-slate-500">{{ $k->tingkat }} • {{ $k->jenjang }}</p>
                         </div>
                         <div class="flex shrink-0 items-center gap-1">

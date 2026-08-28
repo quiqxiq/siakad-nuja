@@ -16,7 +16,7 @@
     <x-form.select label="Target Kelas (Broadcast WA)" name="kelas_id" :selected="old('kelas_id', $pengumuman->kelas_id ?? '')" :placeholder="false">
         <option value="">🌐 Semua Kelas (Seluruh Sekolah)</option>
         @foreach ($kelasList as $kls)
-            <option value="{{ $kls->id }}" @selected(old('kelas_id', $pengumuman->kelas_id ?? '') == $kls->id)>🏫 Khusus {{ $kls->nama_kelas }} ({{ $kls->jenjang }})</option>
+            <option value="{{ $kls->id }}" @selected(old('kelas_id', $pengumuman->kelas_id ?? '') == $kls->id)>🏫 Khusus {{ $kls->nama_lengkap }}</option>
         @endforeach
     </x-form.select>
 

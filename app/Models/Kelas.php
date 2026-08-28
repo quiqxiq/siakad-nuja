@@ -43,4 +43,16 @@ class Kelas extends Model
     {
         return $this->hasMany(Nilai::class, 'kelas_id');
     }
+
+    /**
+     * Label nama lengkap kelas beserta jenjang (contoh: "MI 1" atau "MTs 7").
+     */
+    public function getNamaLengkapAttribute(): string
+    {
+        if ($this->jenjang) {
+            return "{$this->jenjang} {$this->nama_kelas}";
+        }
+
+        return "Kelas {$this->nama_kelas}";
+    }
 }

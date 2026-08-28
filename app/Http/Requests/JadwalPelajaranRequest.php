@@ -28,7 +28,7 @@ class JadwalPelajaranRequest extends FormRequest
             'jam_mulai' => ['required', 'date_format:H:i'],
             'jam_selesai' => ['required', 'date_format:H:i', 'after:jam_mulai'],
             'ruangan' => ['nullable', 'string', 'max:50'],
-            'tahun_ajaran' => ['required', 'string', 'max:15'],
+            'tahun_ajaran' => ['required', 'string', 'regex:/^\d{4}\/\d{4}$/'],
         ];
     }
 
@@ -39,6 +39,7 @@ class JadwalPelajaranRequest extends FormRequest
     {
         return [
             'jam_selesai.after' => 'Jam selesai harus lebih besar (setelah) dari jam mulai.',
+            'tahun_ajaran.regex' => 'Format tahun ajaran harus YYYY/YYYY (contoh: 2026/2027).',
         ];
     }
 
