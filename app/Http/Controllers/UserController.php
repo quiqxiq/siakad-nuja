@@ -21,6 +21,9 @@ class UserController extends Controller
                 $query->where('nama', 'like', "%{$q}%")->orWhere('email', 'like', "%{$q}%");
             })
             ->when(request('role'), fn ($query, $role) => $query->where('role', $role))
+            ->when(request()->filled('status'), function ($query): void {
+                $query->where('is_active', request('status') === '1');
+            })
             ->orderBy('nama')
             ->paginate(15)
             ->withQueryString();

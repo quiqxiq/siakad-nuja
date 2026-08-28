@@ -21,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // generate URL & secure cookie benar.
         $middleware->trustProxies(at: env('TRUSTED_PROXIES', '*'));
 
+        $middleware->appendToGroup('web', \App\Http\Middleware\EnsureActiveUser::class);
+
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
         ]);

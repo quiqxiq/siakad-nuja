@@ -20,7 +20,22 @@ class TagihanRequest extends FormRequest
             'kelas_id_massal' => 'nullable|exists:kelas,id',
             'judul'           => 'required|string|max:200',
             'jenis'           => 'required|string|max:50',
-            'periode'         => 'required|string|max:50',
+            'periode'         => [
+                'required',
+                'string',
+                'max:50',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (preg_match_all('/\b(20\d{2})\b/', (string) $value, $matches)) {
+                        $currentYear = (int) date('Y');
+                        foreach ($matches[1] as $year) {
+                            if ((int) $year > $currentYear) {
+                                $fail("Tahun pada periode tagihan tidak boleh melebihi tahun saat ini ({$currentYear}).");
+                                return;
+                            }
+                        }
+                    }
+                },
+            ],
             'nominal'         => 'required|numeric|min:0',
             'jatuh_tempo'     => 'nullable|date',
             'keterangan'      => 'nullable|string|max:500',

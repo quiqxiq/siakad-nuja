@@ -13,15 +13,21 @@
 
 <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
     <x-search-bar placeholder="Cari nama atau email..." />
-    <form method="GET" class="w-full sm:w-auto">
-        @foreach (request()->except(['role', 'page']) as $k => $v)
+    <form method="GET" class="w-full sm:w-auto flex flex-wrap items-center gap-2">
+        @foreach (request()->except(['role', 'status', 'page']) as $k => $v)
             @if (! is_array($v)) <input type="hidden" name="{{ $k }}" value="{{ $v }}"> @endif
         @endforeach
         <select name="role" onchange="this.form.submit()"
-            class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+            class="block w-full sm:w-auto rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
             <option value="">Semua Peran</option>
             <option value="admin" @selected(request('role') === 'admin')>Administrator</option>
             <option value="guru" @selected(request('role') === 'guru')>Guru</option>
+        </select>
+        <select name="status" onchange="this.form.submit()"
+            class="block w-full sm:w-auto rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500">
+            <option value="">Semua Status</option>
+            <option value="1" @selected(request('status') === '1')>Aktif</option>
+            <option value="0" @selected(request('status') === '0')>Nonaktif</option>
         </select>
     </form>
 </div>

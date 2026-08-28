@@ -51,7 +51,7 @@
         {{-- Judul --}}
         <div class="sm:col-span-2">
             <x-form.input label="Judul Tagihan" name="judul" :value="$tagihan->judul ?? ''" required
-                placeholder="contoh: SPP Bulan Juli 2026" />
+                :placeholder="'contoh: SPP Bulan Juli ' . date('Y')" />
         </div>
 
         {{-- Jenis & Periode --}}
@@ -62,7 +62,7 @@
         </x-form.select>
 
         <x-form.input label="Periode" name="periode" :value="$tagihan->periode ?? ''"
-            placeholder="Juli 2026 / Semester 1 2026/2027" required />
+            :placeholder="'Juli ' . date('Y') . ' / Semester 1 ' . date('Y') . '/' . (date('Y') + 1)" required />
 
         {{-- Nominal & Jatuh Tempo --}}
         <x-form.input label="Nominal (Rp)" name="nominal" type="number" step="1000" min="0"
