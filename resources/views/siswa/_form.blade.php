@@ -11,7 +11,7 @@
     <x-form.input label="Tanggal Lahir" name="tanggal_lahir" type="date"
         :value="isset($siswa) ? optional($siswa->tanggal_lahir)->format('Y-m-d') : ''" />
 
-    <x-form.select label="Jenis Kelamin" name="jenis_kelamin" :selected="old('jenis_kelamin', $siswa->jenis_kelamin ?? '')">
+    <x-form.select label="Jenis Kelamin" name="jenis_kelamin" :selected="old('jenis_kelamin', $siswa->jenis_kelamin ?? '')" required>
         <option value="L" @selected(old('jenis_kelamin', $siswa->jenis_kelamin ?? '') === 'L')>Laki-laki</option>
         <option value="P" @selected(old('jenis_kelamin', $siswa->jenis_kelamin ?? '') === 'P')>Perempuan</option>
     </x-form.select>

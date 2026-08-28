@@ -16,6 +16,12 @@
     <meta property="og:title" content="SIAKAD NUJA — Sistem Informasi Akademik Nurul Jadid Karduluk">
     <meta property="og:description" content="Platform akademik digital terpadu untuk Yayasan & Lembaga Pendidikan Nurul Jadid Karduluk, Sumenep.">
     <title>SIAKAD NUJA — Sistem Informasi Akademik · Nurul Jadid Karduluk Sumenep</title>
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Siakad Nuja" />
+    <link rel="manifest" href="/site.webmanifest" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-brand-500/30 overflow-x-hidden">
@@ -25,7 +31,9 @@
     <main>
         @include('landing.hero')
         @include('landing.marquee')
+        @include('landing.roles')
         @include('landing.gallery')
+        @include('landing.stats')
         @include('landing.cta')
     </main>
 

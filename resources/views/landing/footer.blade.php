@@ -7,7 +7,7 @@
             <div class="lg:col-span-2">
                 <div class="flex items-center gap-3">
                     <div class="flex h-12 w-12 items-center justify-center transition hover:scale-105">
-                        <img src="{{ asset('images/logo-nuja-karduluk.png') }}" alt="Logo Yayasan Nurul Jadid Karduluk YANUJA" class="h-full w-full object-contain filter drop-shadow-[0_2px_8px_rgba(0,140,227,0.45)]">
+                        <img src="{{ asset('images/logo.png') }}" alt="Logo Yayasan Nurul Jadid Karduluk YANUJA" class="h-full w-full object-contain filter drop-shadow-[0_2px_8px_rgba(0,140,227,0.45)]">
                     </div>
                     <div class="leading-tight">
                         <div class="text-sm font-black text-white tracking-tight flex items-center gap-1.5">
@@ -38,7 +38,6 @@
                     @foreach ([
                         '#beranda'   => 'Beranda',
                         '#tentang'   => 'Tentang Yayasan',
-                        '#fitur'     => 'Fitur Unggulan',
                         '#galeri'    => 'Galeri & Kegiatan',
                         '#statistik' => 'Pencapaian',
                     ] as $href => $label)

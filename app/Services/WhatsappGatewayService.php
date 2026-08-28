@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\NotifikasiWhatsapp;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Kstmostofa\LaravelWhatsApp\Facades\WhatsApp;
 
@@ -25,7 +26,34 @@ class WhatsappGatewayService
     }
 
     /**
-     * Format nomor ke JID WhatsApp Web sidecar (e.g., "628123456789@c.us")
+     * Resolve nomor HP asli jika pengirim menggunakan WhatsApp LID JID (@lid).
+     */
+    public function resolvePhoneNumber(string $jidOrNumber): ?string
+    {
+        if (! str_contains($jidOrNumber, '@lid') && ! (is_numeric($jidOrNumber) && strlen($jidOrNumber) >= 14 && ! str_starts_with($jidOrNumber, '62') && ! str_starts_with($jidOrNumber, '08'))) {
+            return $this->normalisasiNomor($jidOrNumber);
+        }
+
+        $cacheKey = 'wa_lid_resolved_' . md5($jidOrNumber);
+
+        return Cache::remember($cacheKey, now()->addDays(7), function () use ($jidOrNumber) {
+            try {
+                $client = WhatsApp::web('main')->client();
+                $contact = $client->request('GET', 'sessions/main/contacts/' . rawurlencode($jidOrNumber));
+                $user = $contact['id']['user'] ?? null;
+                if ($user && $user !== 'lid' && ! empty($user)) {
+                    return $this->normalisasiNomor((string) $user);
+                }
+            } catch (\Throwable $e) {
+                Log::warning("[WhatsappGatewayService] Gagal resolve LID {$jidOrNumber}: " . $e->getMessage());
+            }
+
+            return null;
+        });
+    }
+
+    /**
+     * Format nomor ke JID WhatsApp Web sidecar (e.g., "628123456789@c.us" atau tetap JID jika sudah ada @)
      */
     public function toJid(string $noHp): string
     {

@@ -8,7 +8,7 @@
         {{-- Logo --}}
         <a href="#beranda" class="group flex items-center gap-3 select-none">
             <div class="relative flex h-12 w-12 items-center justify-center transition group-hover:scale-105">
-                <img src="{{ asset('images/logo-nuja-karduluk.png') }}" alt="Logo Yayasan Nurul Jadid Karduluk YANUJA" class="h-full w-full object-contain filter drop-shadow-[0_2px_8px_rgba(0,140,227,0.45)]">
+                <img src="{{ asset('images/logo.png') }}" alt="Logo Yayasan Nurul Jadid Karduluk YANUJA" class="h-full w-full object-contain filter drop-shadow-[0_2px_8px_rgba(0,140,227,0.45)]">
             </div>
             <div class="leading-tight">
                 <div class="text-sm font-black tracking-tight text-white flex items-center gap-1.5">
@@ -21,7 +21,7 @@
 
         {{-- Menu desktop --}}
         <div class="hidden items-center gap-1 md:flex">
-            @foreach (['#beranda' => 'Beranda', '#tentang' => 'Tentang', '#fitur' => 'Fitur', '#galeri' => 'Galeri', '#statistik' => 'Pencapaian'] as $href => $label)
+            @foreach (['#beranda' => 'Beranda', '#tentang' => 'Tentang', '#galeri' => 'Galeri', '#statistik' => 'Pencapaian'] as $href => $label)
                 <a href="{{ $href }}"
                    class="rounded-full px-4 py-2 text-sm font-medium text-slate-300 transition-all hover:bg-white/10 hover:text-white">
                     {{ $label }}

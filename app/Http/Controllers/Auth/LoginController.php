@@ -19,10 +19,27 @@ class LoginController extends Controller
 
     public function login(Request $request): RedirectResponse
     {
-        $credentials = $request->validate([
-            'email' => 'required|email',
+        $request->validate([
+            'email' => 'required|string',
             'password' => 'required|string',
         ]);
+
+        $input = trim((string) $request->input('email'));
+        $password = (string) $request->input('password');
+
+        // Jika user mengetik 'admin' atau 'guru1', auto-resolve ke email siakadnuja.sch.id
+        if (! filter_var($input, FILTER_VALIDATE_EMAIL)) {
+            if ($input === 'admin') {
+                $input = 'admin@siakadnuja.sch.id';
+            } elseif (preg_match('/^guru\d+$/i', $input)) {
+                $input = strtolower($input) . '@siakadnuja.sch.id';
+            }
+        }
+
+        $credentials = [
+            'email' => $input,
+            'password' => $password,
+        ];
 
         if (Auth::attempt($credentials, (bool) $request->boolean('remember'))) {
             $user = Auth::user();

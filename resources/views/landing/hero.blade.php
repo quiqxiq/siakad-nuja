@@ -90,7 +90,7 @@
                             <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
                             <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                                 <div class="flex items-center gap-2">
-                                    <img src="{{ asset('images/logo-nuja-karduluk.png') }}" alt="Logo YANUJA" class="h-9 w-9 object-contain filter drop-shadow-[0_2px_6px_rgba(0,140,227,0.5)]">
+                                    <img src="{{ asset('images/logo.png') }}" alt="Logo YANUJA" class="h-9 w-9 object-contain filter drop-shadow-[0_2px_6px_rgba(0,140,227,0.5)]">
                                     <div>
                                         <div class="text-xs font-bold text-white leading-tight flex items-center gap-1">
                                             <span>Yayasan Nurul Jadid Karduluk</span>

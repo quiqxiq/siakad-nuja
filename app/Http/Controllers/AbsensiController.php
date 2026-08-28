@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Absensi;
+use App\Models\Guru;
 use App\Models\JadwalPelajaran;
+use App\Models\Kelas;
+use App\Models\MataPelajaran;
 use App\Models\Siswa;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -19,19 +22,93 @@ class AbsensiController extends Controller
     {
         $user = $request->user();
 
-        $absensi = Absensi::with(['siswa', 'jadwal.mapel', 'jadwal.kelas'])
+        // Base query dengan otorisasi guru
+        $baseQuery = Absensi::query()
             ->when($user->isGuru(), function ($query) use ($user): void {
                 $jadwalIds = $this->jadwalIdsUntukGuru($user);
                 $query->whereIn('jadwal_id', $jadwalIds ?: [0]);
+            });
+
+        // Summary counts
+        $summary = [
+            'total' => (clone $baseQuery)->count(),
+            'hadir' => (clone $baseQuery)->where('status', 'Hadir')->count(),
+            'izin'  => (clone $baseQuery)->where('status', 'Izin')->count(),
+            'sakit' => (clone $baseQuery)->where('status', 'Sakit')->count(),
+            'alpa'  => (clone $baseQuery)->where('status', 'Alpa')->count(),
+        ];
+
+        // Filtered query
+        $absensi = (clone $baseQuery)
+            ->with(['siswa.kelas', 'jadwal.mapel', 'jadwal.kelas', 'jadwal.guru'])
+            ->when($request->filled('q'), function ($q) use ($request): void {
+                $search = '%' . trim((string) $request->input('q')) . '%';
+                $q->where(function ($sub) use ($search): void {
+                    $sub->whereHas('siswa', function ($sq) use ($search): void {
+                        $sq->where('nama_lengkap', 'like', $search)
+                            ->orWhere('nis', 'like', $search);
+                    })
+                    ->orWhere('keterangan', 'like', $search);
+                });
             })
-            ->when($request->input('jadwal_id'), fn ($q, $id) => $q->where('jadwal_id', $id))
-            ->when($request->input('tanggal'), fn ($q, $tgl) => $q->whereDate('tanggal', $tgl))
+            ->when($request->filled('kelas_id'), function ($q) use ($request): void {
+                $kelasId = $request->input('kelas_id');
+                $q->whereHas('jadwal', fn ($jq) => $jq->where('kelas_id', $kelasId));
+            })
+            ->when($request->filled('mapel_id'), function ($q) use ($request): void {
+                $mapelId = $request->input('mapel_id');
+                $q->whereHas('jadwal', fn ($jq) => $jq->where('mapel_id', $mapelId));
+            })
+            ->when($request->filled('hari'), function ($q) use ($request): void {
+                $hari = $request->input('hari');
+                $q->whereHas('jadwal', fn ($jq) => $jq->where('hari', $hari));
+            })
+            ->when($request->filled('guru_id'), function ($q) use ($request): void {
+                $guruId = $request->input('guru_id');
+                $q->whereHas('jadwal', fn ($jq) => $jq->where('guru_id', $guruId));
+            })
+            ->when($request->filled('status'), function ($q) use ($request): void {
+                $q->where('status', $request->input('status'));
+            })
+            ->when($request->filled('tanggal'), function ($q) use ($request): void {
+                $q->whereDate('tanggal', $request->input('tanggal'));
+            })
+            ->when($request->filled('jadwal_id'), function ($q) use ($request): void {
+                $q->where('jadwal_id', $request->input('jadwal_id'));
+            })
             ->orderByDesc('tanggal')
+            ->orderBy('jadwal_id')
             ->orderBy('siswa_id')
             ->paginate(20)
             ->withQueryString();
 
-        return view('absensi.index', compact('absensi'));
+        // Dropdowns data
+        if ($user->isGuru()) {
+            $guruJadwalIds = $this->jadwalIdsUntukGuru($user);
+            $kelasIds = JadwalPelajaran::whereIn('id', $guruJadwalIds)->pluck('kelas_id');
+            $mapelIds = JadwalPelajaran::whereIn('id', $guruJadwalIds)->pluck('mapel_id');
+
+            $kelasList = Kelas::whereIn('id', $kelasIds)->orderBy('nama_kelas')->get();
+            $mapelList = MataPelajaran::whereIn('id', $mapelIds)->orderBy('nama_mapel')->get();
+            $guruList = collect();
+        } else {
+            $kelasList = Kelas::orderBy('nama_kelas')->get();
+            $mapelList = MataPelajaran::orderBy('nama_mapel')->get();
+            $guruList = Guru::orderBy('nama_lengkap')->get();
+        }
+
+        $hariList = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        $statusList = ['Hadir', 'Izin', 'Sakit', 'Alpa'];
+
+        return view('absensi.index', compact(
+            'absensi',
+            'summary',
+            'kelasList',
+            'mapelList',
+            'guruList',
+            'hariList',
+            'statusList'
+        ));
     }
 
     /**

@@ -35,15 +35,27 @@ class JadwalPelajaranRequest extends FormRequest
     /**
      * @return array<string, string>
      */
+    public function messages(): array
+    {
+        return [
+            'jam_selesai.after' => 'Jam selesai harus lebih besar (setelah) dari jam mulai.',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
     public function attributes(): array
     {
         return [
             'kelas_id' => 'kelas',
             'mapel_id' => 'mata pelajaran',
             'guru_id' => 'guru',
+            'hari' => 'hari',
             'jam_ke' => 'jam ke',
             'jam_mulai' => 'jam mulai',
             'jam_selesai' => 'jam selesai',
+            'ruangan' => 'ruangan',
             'tahun_ajaran' => 'tahun ajaran',
         ];
     }

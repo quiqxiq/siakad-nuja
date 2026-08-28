@@ -26,7 +26,7 @@ class SiswaRequest extends FormRequest
             'nama_lengkap' => ['required', 'string', 'max:150'],
             'kelas_id' => ['required', 'exists:kelas,id'],
             'tanggal_lahir' => ['nullable', 'date'],
-            'jenis_kelamin' => ['nullable', Rule::in(['L', 'P'])],
+            'jenis_kelamin' => ['required', Rule::in(['L', 'P'])],
             'alamat' => ['nullable', 'string'],
             'foto' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'status' => ['nullable', Rule::in(['Aktif', 'Lulus', 'Pindah', 'Keluar'])],

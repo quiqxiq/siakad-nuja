@@ -58,7 +58,7 @@
 <nav x-data class="flex h-full flex-col bg-slate-900 text-slate-300">
     <a href="{{ route('landing') }}" class="group flex items-center gap-2.5 px-5 h-16 border-b border-slate-800 shrink-0 hover:bg-slate-800/60 transition-colors" title="Kembali ke Landing Page">
         <div class="relative flex h-9 w-9 items-center justify-center transition-transform group-hover:scale-105">
-            <img src="{{ asset('images/logo-nuja-karduluk.png') }}" alt="Logo Yayasan Nurul Jadid Karduluk" class="h-full w-full object-contain filter drop-shadow-[0_2px_6px_rgba(0,140,227,0.4)]">
+            <img src="{{ asset('images/logo.png') }}" alt="Logo Yayasan Nurul Jadid Karduluk" class="h-full w-full object-contain filter drop-shadow-[0_2px_6px_rgba(0,140,227,0.4)]">
         </div>
         <div class="leading-tight">
             <div class="font-bold text-white transition-colors group-hover:text-brand-400">SIAKAD NUJA</div>

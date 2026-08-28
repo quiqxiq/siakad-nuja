@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('nama_lengkap', 150);
             $table->foreignId('kelas_id')->constrained('kelas')->cascadeOnUpdate()->restrictOnDelete();
             $table->date('tanggal_lahir')->nullable();
-            $table->string('jenis_kelamin', 10)->nullable();
+            $table->string('jenis_kelamin', 10);
             $table->text('alamat')->nullable();
             $table->string('foto', 255)->nullable();
             $table->string('status', 20)->nullable();

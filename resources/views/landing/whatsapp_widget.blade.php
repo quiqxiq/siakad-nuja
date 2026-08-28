@@ -72,7 +72,7 @@
             <div class="flex items-center gap-2.5">
                 <div class="relative">
                     <div class="h-9 w-9 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 p-0.5 shadow-md">
-                        <img src="{{ asset('images/logo-nuja-karduluk.png') }}" alt="Bot Logo" class="h-full w-full rounded-full object-cover bg-slate-900">
+                        <img src="{{ asset('images/logo.png') }}" alt="Bot Logo" class="h-full w-full rounded-full object-cover bg-slate-900">
                     </div>
                     <span class="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-900"></span>
                 </div>
@@ -141,7 +141,7 @@
                          x-transition:enter-end="opacity-100 translate-y-0 scale-100"
                          class="max-w-[88%] rounded-xl rounded-tl-none bg-slate-800/90 text-slate-100 p-2.5 shadow-md text-xs leading-relaxed border border-white/10 backdrop-blur-sm">
                         <div class="text-[9px] font-bold text-emerald-400 mb-1 flex items-center justify-between border-b border-white/5 pb-1">
-                            <span>🤖 Bot SIAKAD NUJA</span>
+                            <span>Bot SIAKAD NUJA</span>
                             <span class="text-[8px] bg-slate-700/60 px-1 py-0.2 rounded text-slate-300">Otomatis</span>
                         </div>
                         <div class="whitespace-pre-line text-slate-200 font-sans text-[11px]" x-html="formatMarkdown(msg.text)"></div>

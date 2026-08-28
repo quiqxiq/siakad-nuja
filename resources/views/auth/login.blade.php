@@ -8,7 +8,7 @@
         <div class="mb-8 flex flex-col items-center text-center">
             <a href="{{ route('landing') }}" class="group flex flex-col items-center transition focus:outline-none" title="Kembali ke Beranda / Landing Page">
                 <div class="relative flex h-16 w-16 items-center justify-center transition-transform duration-300 group-hover:scale-105">
-                    <img src="{{ asset('images/logo-nuja-karduluk.png') }}" alt="Logo Yayasan Nurul Jadid Karduluk" class="h-full w-full object-contain filter drop-shadow-[0_2px_8px_rgba(0,140,227,0.45)]">
+                    <img src="{{ asset('images/logo.png') }}" alt="Logo Yayasan Nurul Jadid Karduluk" class="h-full w-full object-contain filter drop-shadow-[0_2px_8px_rgba(0,140,227,0.45)]">
                 </div>
                 <h1 class="mt-3 text-2xl font-bold text-slate-900 dark:text-white transition-colors group-hover:text-brand-600 dark:group-hover:text-brand-400">SIAKAD NUJA</h1>
                 <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Sistem Informasi Akademik Nurul Jadid</p>
@@ -24,8 +24,8 @@
 
             <form method="POST" action="{{ route('login.attempt') }}" class="space-y-5">
                 @csrf
-                <x-form.input label="Email" name="email" type="email" :value="old('email')" required autofocus autocomplete="username" />
-                <x-form.input label="Password" name="password" type="password" required autocomplete="current-password" />
+                <x-form.input label="Email / Username" name="email" type="text" :value="old('email')" placeholder="admin@siakadnuja.sch.id atau admin" required autofocus autocomplete="username" />
+                <x-form.input label="Password" name="password" type="password" placeholder="••••••••" required autocomplete="current-password" />
 
                 <div class="flex items-center justify-between">
                     <x-form.checkbox label="Ingat saya" name="remember" />
@@ -38,7 +38,7 @@
         </div>
 
         <p class="mt-6 text-center text-xs text-slate-400">
-            &copy; {{ date('Y') }} SIAKAD NUJA — Akun dibuat oleh administrator.
+            &copy; {{ date('Y') }} SIAKAD NUJA — Yayasan Nurul Jadid Karduluk
         </p>
     </div>
 </div>

@@ -1,0 +1,9 @@
+tunnel: eead279d-e08e-4782-a358-64a03826970f
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  - hostname: siakad.ghaibnet.co.id
+    service: http://web:80
+  - hostname: siakad-nuja.ghaibnet.co.id
+    service: http://web:80
+  - service: http_status:404

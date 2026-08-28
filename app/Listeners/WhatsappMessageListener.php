@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace App\Listeners;
 
 use App\Services\ChatbotService;
+use App\Services\WhatsappGatewayService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Kstmostofa\LaravelWhatsApp\Events\Web\MessageReceived;
 
 class WhatsappMessageListener
 {
-    public function __construct(private readonly ChatbotService $chatbotService) {}
+    public function __construct(
+        private readonly ChatbotService $chatbotService,
+        private readonly WhatsappGatewayService $gatewayService
+    ) {}
 
     public function handle(object $event): void
     {
@@ -57,12 +61,18 @@ class WhatsappMessageListener
 
             // Deduplication locking: Ensures each unique incoming message is processed ONLY ONCE
             $uniqueKey = 'wa_msg_dedup_' . md5(($msgId ?? '') . '_' . $rawFrom . '_' . $body . '_' . $time);
-            if (! Cache::add($uniqueKey, true, 30)) {
+            if (! Cache::add($uniqueKey, true, 10)) {
                 Log::debug("[WhatsappMessageListener] Skipped duplicate message event dispatch: {$uniqueKey}");
                 return;
             }
 
-            Log::info("[WhatsappMessageListener] Processing inbound message from {$rawFrom} (sender: {$senderNumber}): {$body}");
+            // Resolve real phone number if WhatsApp sends an LID JID (@lid)
+            $resolvedPhone = $this->gatewayService->resolvePhoneNumber($rawFrom);
+            if (! $senderNumber && $resolvedPhone) {
+                $senderNumber = $resolvedPhone;
+            }
+
+            Log::info("[WhatsappMessageListener] Processing inbound message from {$rawFrom} (resolved phone: {$senderNumber}): {$body}");
 
             $this->chatbotService->process($rawFrom, (string) $body, $senderNumber);
         } catch (\Exception $e) {

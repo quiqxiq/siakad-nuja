@@ -20,8 +20,12 @@ class ChatbotService
 {
     private const TIMEOUT_MINUTES = 30;
 
+    public function __construct(
+        private readonly WhatsappGatewayService $gatewayService
+    ) {}
+
     /**
-     * Entry point utama — dipanggil dari WhatsappWebhookController.
+     * Entry point utama — dipanggil dari WhatsappWebhookController & WhatsappMessageListener.
      */
     public function process(string $noHp, string $pesanMasuk, ?string $senderNumber = null): void
     {
@@ -29,11 +33,19 @@ class ChatbotService
         $cleanNoHp   = preg_replace('/[^0-9]/', '', $noHp);
         $cleanSender = $senderNumber ? preg_replace('/[^0-9]/', '', $senderNumber) : null;
 
+        // Jika nomor pengirim adalah LID dan belum ter-resolve via $senderNumber, coba resolve
+        if (! $cleanSender && (str_contains($noHp, '@lid') || (strlen($cleanNoHp) >= 14 && ! str_starts_with($cleanNoHp, '62') && ! str_starts_with($cleanNoHp, '08')))) {
+            $resolved = $this->gatewayService->resolvePhoneNumber($noHp);
+            if ($resolved) {
+                $cleanSender = preg_replace('/[^0-9]/', '', $resolved);
+            }
+        }
+
         $targetNumbers = array_unique(array_filter([
             $cleanNoHp,
             $cleanSender,
-            str_starts_with((string)$cleanSender, '0') ? ('62' . substr($cleanSender, 1)) : $cleanSender,
-            str_starts_with((string)$cleanSender, '62') ? ('0' . substr($cleanSender, 2)) : $cleanSender,
+            $cleanSender ? (str_starts_with($cleanSender, '0') ? ('62' . substr($cleanSender, 1)) : $cleanSender) : null,
+            $cleanSender ? (str_starts_with($cleanSender, '62') ? ('0' . substr($cleanSender, 2)) : $cleanSender) : null,
             str_starts_with($cleanNoHp, '0') ? ('62' . substr($cleanNoHp, 1)) : $cleanNoHp,
             str_starts_with($cleanNoHp, '62') ? ('0' . substr($cleanNoHp, 2)) : $cleanNoHp,
             $noHp,
@@ -51,9 +63,12 @@ class ChatbotService
         // Fallback: Jika belum cocok via nomor HP, cek apakah JID ini sudah memiliki sesi aktif terikat ke wali
         if (! $orangTuaRef) {
             $existingSession = ChatbotSession::whereNotNull('orang_tua_id')
-                ->where(function ($q) use ($noHp, $cleanNoHp): void {
+                ->where(function ($q) use ($noHp, $cleanNoHp, $cleanSender): void {
                     $q->where('no_hp', $noHp)
                       ->orWhere('no_hp', $cleanNoHp);
+                    if ($cleanSender) {
+                        $q->orWhere('no_hp', $cleanSender);
+                    }
                 })
                 ->first();
 
@@ -94,7 +109,7 @@ class ChatbotService
             }
         })
         ->whereNotNull('siswa_id')
-        ->with('siswa')
+        ->with('siswa.kelas')
         ->get();
 
         if ($semua->isEmpty()) {
@@ -120,124 +135,127 @@ class ChatbotService
                 'last_activity'    => now(),
             ]);
         } else {
-            $session->no_hp            = $noHp;
-            $session->orang_tua_id     = $orangTuaRef->id;
-            $session->anak_terpilih_id = $session->anak_terpilih_id ?? $singleSiswaId;
-        }
-
-        // 5. Cek timeout (30 menit) -> reset
-        if (Carbon::parse($session->last_activity)->diffInMinutes(now()) > self::TIMEOUT_MINUTES) {
-            $session->state            = $semua->count() > 1 ? 'PILIH_ANAK' : 'MENU_UTAMA';
-            $session->anak_terpilih_id = $singleSiswaId;
-            $session->data_context     = null;
-        }
-
-        // 6. Jika hanya 1 anak, otomatis pilih anak tersebut dan pastikan state MENU_UTAMA
-        if ($semua->count() === 1) {
-            $session->anak_terpilih_id = $singleSiswaId;
-            if ($session->state === 'PILIH_ANAK') {
-                $session->state = 'MENU_UTAMA';
+            // Update mapping nomor HP / JID jika sebelumnya belum terikat
+            if ($session->orang_tua_id !== $orangTuaRef->id || $session->no_hp !== $noHp) {
+                $session->update([
+                    'orang_tua_id' => $orangTuaRef->id,
+                    'no_hp'        => $noHp,
+                ]);
             }
         }
 
-        // 7. Handle keyword global
-        $pesanUpper = strtoupper(trim($pesanMasuk));
-        if ($pesanUpper === 'MENU') {
-            $session->state = ($semua->count() > 1 && !$session->anak_terpilih_id) ? 'PILIH_ANAK' : 'MENU_UTAMA';
-        } elseif (in_array($pesanUpper, ['GANTI ANAK', 'PILIH ANAK']) && $semua->count() > 1) {
-            $session->state = 'PILIH_ANAK';
-            $session->anak_terpilih_id = null;
+        // Reset sesi jika sudah timeout (> 30 menit)
+        if ($session->last_activity && Carbon::parse($session->last_activity)->diffInMinutes(now()) > self::TIMEOUT_MINUTES) {
+            $session->update([
+                'state'            => $semua->count() > 1 ? 'PILIH_ANAK' : 'MENU_UTAMA',
+                'anak_terpilih_id' => $singleSiswaId,
+            ]);
         }
 
-        // 8. Tentukan siswa aktif saat ini
-        $siswaAktif = $session->anak_terpilih_id
-            ? Siswa::find($session->anak_terpilih_id)
-            : null;
+        $session->update(['last_activity' => now()]);
 
-        // 9. Routing berdasarkan state
-        [$balasan, $newState, $newAnakId, $intent] = $this->routing(
-            $session->state, $pesanMasuk, $orangTuaRef, $semua, $siswaAktif
+        // 5. Proses state machine chatbot
+        [$balasan, $nextState, $siswaId, $intent] = $this->handleStateMachine(
+            $session,
+            $orangTuaRef,
+            $semua,
+            trim($pesanMasuk)
         );
 
-        // 10. Update sesi
-        $session->orang_tua_id      = $orangTuaRef->id;
-        $session->state             = $newState;
-        $session->anak_terpilih_id  = $newAnakId ?? $session->anak_terpilih_id;
-        $session->last_activity     = now();
-        $session->save();
+        $session->update([
+            'state'            => $nextState,
+            'anak_terpilih_id' => $siswaId,
+        ]);
 
-        // 11. Kirim & log
-        $displayNum = $this->toLokalFormat($orangTuaRef->no_wa ?? $orangTuaRef->no_hp ?? $cleanSender ?? $cleanNoHp);
-        $this->balasDanLog($noHp, $pesanMasuk, $balasan, $orangTuaRef->id, $siswaAktif?->id ?? $newAnakId, $intent, $displayNum);
+        $displayNum = $cleanSender ? $this->toLokalFormat($cleanSender) : $this->toLokalFormat($orangTuaRef->no_wa ?: $cleanNoHp);
+        $this->balasDanLog($noHp, $pesanMasuk, $balasan, $orangTuaRef->id, $siswaId, $intent, $displayNum);
     }
 
     // ─────────────────────────────────────────────────────────
-    // ROUTING STATE MACHINE
+    // STATE MACHINE
     // ─────────────────────────────────────────────────────────
 
-    private function routing(
-        string $state,
-        string $pesan,
-        OrangTua $orangTuaRef,
-        Collection $semua,
-        ?Siswa $siswaAktif
+    private function handleStateMachine(
+        ChatbotSession $session,
+        OrangTua $orangTua,
+        Collection $semuaAnak,
+        string $input
     ): array {
-        $input = trim($pesan);
+        $inputUpper = strtoupper($input);
 
-        return match ($state) {
-            'PILIH_ANAK' => $this->handlePilihAnak($input, $semua),
-            'MENU_UTAMA' => $this->handleMenuUtama($input, $orangTuaRef, $siswaAktif, $semua),
-            default      => [
-                $this->getMenuUtamaText($orangTuaRef->nama, $siswaAktif, $semua->count() > 1),
+        // Perintah global: Ganti Anak
+        if (in_array($inputUpper, ['GANTI ANAK', 'GANTIANAK', 'PILIH ANAK', 'PILIHANAK'], true) && $semuaAnak->count() > 1) {
+            return [
+                $this->getPilihAnakText($semuaAnak),
+                'PILIH_ANAK',
+                null,
+                'GANTI_ANAK',
+            ];
+        }
+
+        // Perintah global: Menu / Bantuan / Salam
+        if (in_array($inputUpper, ['MENU', 'HELP', 'BANTUAN', 'HALO', 'HAI', 'ASSALAMUALAIKUM', 'INFO', 'MULAI', 'START', 'TES'], true)) {
+            if ($semuaAnak->count() > 1 && ! $session->anak_terpilih_id) {
+                return [
+                    $this->getPilihAnakText($semuaAnak),
+                    'PILIH_ANAK',
+                    null,
+                    'PILIH_ANAK',
+                ];
+            }
+
+            $siswa = $session->anak_terpilih_id
+                ? Siswa::find($session->anak_terpilih_id)
+                : $semuaAnak->first()?->siswa;
+
+            return [
+                $this->getMenuUtamaText($orangTua->nama, $siswa, $semuaAnak->count() > 1),
                 'MENU_UTAMA',
-                $siswaAktif?->id,
-                'RESET_STATE',
-            ],
+                $siswa?->id,
+                'MENU_UTAMA',
+            ];
+        }
+
+        return match ($session->state) {
+            'PILIH_ANAK' => $this->handlePilihAnak($session, $orangTua, $semuaAnak, $input),
+            'MENU_UTAMA' => $this->handleMenuUtama($session, $orangTua, $semuaAnak, $input),
+            default      => $this->handleMenuUtama($session, $orangTua, $semuaAnak, $input),
         };
     }
 
-    private function handlePilihAnak(string $input, Collection $semua): array
-    {
-        $anak = $semua->values(); // re-index
+    private function handlePilihAnak(
+        ChatbotSession $session,
+        OrangTua $orangTua,
+        Collection $semuaAnak,
+        string $input
+    ): array {
+        $index = (int) $input - 1;
 
-        // Jika hanya 1 anak, langsung ke MENU_UTAMA
-        if ($anak->count() === 1) {
-            $siswa = $anak->first()->siswa;
-            $wali  = $anak->first();
-            return [
-                $this->getMenuUtamaText($wali->nama, $siswa, false),
-                'MENU_UTAMA',
-                $siswa?->id,
-                'AUTO_SELECT_CHILD',
-            ];
+        if (! is_numeric($input) || ! isset($semuaAnak[$index])) {
+            $pesan = "⚠️ Pilihan tidak valid. Silakan balas dengan angka 1 sampai {$semuaAnak->count()}.\n\n"
+                . $this->getPilihAnakText($semuaAnak);
+            return [$pesan, 'PILIH_ANAK', null, 'INVALID_PILIH_ANAK'];
         }
 
-        // Cek apakah input adalah angka valid
-        $idx = (int) $input - 1;
-        if (is_numeric($input) && $idx >= 0 && $idx < $anak->count()) {
-            $pilihan = $anak[$idx];
-            $siswa   = $pilihan->siswa;
-            $wali    = $pilihan;
+        $anakTerpilih = $semuaAnak[$index]->siswa;
 
-            return [
-                "✅ Anda memilih *{$siswa->nama_lengkap}* — Kelas {$siswa->kelas?->nama_kelas}\n\n" .
-                $this->getMenuUtamaText($wali->nama, $siswa, true),
-                'MENU_UTAMA',
-                $siswa->id,
-                'PILIH_ANAK',
-            ];
-        }
+        $balasan = "✅ Anda memilih: *{$anakTerpilih->nama_lengkap}* (Kelas {$anakTerpilih->kelas?->nama_kelas})\n\n"
+            . $this->getMenuUtamaText($orangTua->nama, $anakTerpilih, true);
 
-        // Tampilkan menu pilih anak
-        return [$this->getPilihAnakText($anak), 'PILIH_ANAK', null, 'SHOW_PILIH_ANAK'];
+        return [$balasan, 'MENU_UTAMA', $anakTerpilih->id, 'PILIH_ANAK_BERHASIL'];
     }
 
     private function handleMenuUtama(
-        string $input,
-        OrangTua $orangTuaRef,
-        ?Siswa $siswaAktif,
-        Collection $semua
+        ChatbotSession $session,
+        OrangTua $orangTua,
+        Collection $semua,
+        string $input
     ): array {
+        $siswaAktif = $session->anak_terpilih_id
+            ? Siswa::with('kelas')->find($session->anak_terpilih_id)
+            : $semua->first()?->siswa;
+
+        // Cek rule dinamis dari database (tabel chatbot_rules)
         $rule = \App\Models\ChatbotRule::where('is_active', true)
             ->where(function ($q) use ($input): void {
                 $q->where('keyword', $input)
@@ -245,31 +263,29 @@ class ChatbotService
             })
             ->first();
 
-        if (! $rule) {
-            return [
-                $this->getMenuUtamaText($orangTuaRef->nama, $siswaAktif, $semua->count() > 1),
-                'MENU_UTAMA',
-                $siswaAktif?->id,
-                'SHOW_MENU',
-            ];
-        }
+        if ($rule) {
+            if ($rule->tipe_action === 'static_text') {
+                $balasan = $this->parseTemplate($rule->isi_balasan ?? '', $orangTua, $siswaAktif);
+            } else {
+                $balasan = match ($rule->action_key) {
+                    'info_nilai'     => $this->getInfoNilai($siswaAktif),
+                    'info_kehadiran' => $this->getInfoKehadiran($siswaAktif),
+                    'info_tagihan'   => $this->getInfoTagihan($siswaAktif),
+                    'info_agenda'    => $this->getInfoAgenda(),
+                    'cs_contact'     => $this->getCsInfo(),
+                    default          => "Layanan '{$rule->judul_menu}' sedang dalam pengembangan.",
+                };
+            }
 
-        if ($rule->tipe_action === 'system_query') {
-            $balasan = match ($rule->action_key) {
-                'info_nilai'     => $this->getInfoNilai($siswaAktif),
-                'info_kehadiran' => $this->getInfoKehadiran($siswaAktif),
-                'info_tagihan'   => $this->getInfoTagihan($siswaAktif),
-                'info_agenda'    => $this->getInfoAgenda(),
-                'cs_contact'     => $this->getCsInfo(),
-                default          => 'Informasi tidak tersedia.',
-            };
-            $intent = strtoupper($rule->action_key ?? 'SYSTEM_QUERY');
+            $intent = 'RULE_' . strtoupper($rule->keyword);
         } else {
-            $balasan = $this->parseTemplate($rule->isi_balasan ?? '', $orangTuaRef, $siswaAktif);
-            $intent  = 'CUSTOM_RULE_' . strtoupper($rule->keyword);
+            // Keyword tidak dikenali &rarr; tampilkan panduan menu
+            $balasan = "⚠️ Perintah tidak dikenali.\n\n"
+                . $this->getMenuUtamaText($orangTua->nama, $siswaAktif, $semua->count() > 1);
+            $intent = 'UNKNOWN_KEYWORD';
         }
 
-        $footer = "\n\nKetik 'MENU' untuk kembali ke menu.";
+        $footer = "\n\nKetik 'MENU' untuk kembali ke menu utama.";
         if ($semua->count() > 1) {
             $footer .= "\nKetik 'GANTI ANAK' untuk mengganti pilihan anak.";
         }
@@ -333,7 +349,7 @@ class ChatbotService
 
     private function getInfoNilai(?Siswa $siswa): string
     {
-        if (!$siswa) {
+        if (! $siswa) {
             return "⚠️ Data siswa belum dipilih. Ketik 'GANTI ANAK' untuk memilih.";
         }
 
@@ -359,7 +375,7 @@ class ChatbotService
 
     private function getInfoKehadiran(?Siswa $siswa): string
     {
-        if (!$siswa) {
+        if (! $siswa) {
             return "⚠️ Data siswa belum dipilih. Ketik 'GANTI ANAK' untuk memilih.";
         }
 
@@ -381,7 +397,7 @@ class ChatbotService
 
     private function getInfoTagihan(?Siswa $siswa): string
     {
-        if (!$siswa) {
+        if (! $siswa) {
             return "⚠️ Data siswa belum dipilih. Ketik 'GANTI ANAK' untuk memilih.";
         }
 
@@ -439,16 +455,16 @@ class ChatbotService
         if (str_starts_with($noHp, '0')) {
             $noHp = '62' . substr($noHp, 1);
         }
-        // Strip @s.whatsapp.net atau @c.us jika ada (dari format Go-WA / legacy)
         return preg_replace('/@.*$/', '', $noHp);
     }
 
     private function toLokalFormat(string $noHp): string
     {
-        if (str_starts_with($noHp, '62')) {
-            return '0' . substr($noHp, 2);
+        $clean = preg_replace('/[^0-9]/', '', $noHp);
+        if (str_starts_with($clean, '62')) {
+            return '0' . substr($clean, 2);
         }
-        return $noHp;
+        return $clean;
     }
 
     private function balasDanLog(
