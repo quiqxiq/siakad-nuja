@@ -3,7 +3,7 @@
     <x-form.input label="Nama Mapel" name="nama_mapel" :value="$mapel->nama_mapel ?? ''" required />
 
     <x-form.select label="Jenjang" name="jenjang" :selected="old('jenjang', $mapel->jenjang ?? '')" required>
-        @foreach (['RA', 'MI', 'MTs'] as $j)
+        @foreach (['MI', 'MTs'] as $j)
             <option value="{{ $j }}" @selected(old('jenjang', $mapel->jenjang ?? '') === $j)>{{ $j }}</option>
         @endforeach
     </x-form.select>

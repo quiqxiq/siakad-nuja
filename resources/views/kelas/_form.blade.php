@@ -4,7 +4,7 @@
     <x-form.input label="Tingkat" name="tingkat" :value="$kelas->tingkat ?? ''" required hint="Mis. X / XI / XII" />
 
     <x-form.select label="Jenjang" name="jenjang" :selected="old('jenjang', $kelas->jenjang ?? '')" required>
-        @foreach (['RA', 'MI', 'MTs'] as $j)
+        @foreach (['MI', 'MTs'] as $j)
             <option value="{{ $j }}" @selected(old('jenjang', $kelas->jenjang ?? '') === $j)>{{ $j }}</option>
         @endforeach
     </x-form.select>
