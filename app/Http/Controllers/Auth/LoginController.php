@@ -27,33 +27,36 @@ class LoginController extends Controller
         $input = trim((string) $request->input('email'));
         $password = (string) $request->input('password');
 
-        // Jika user mengetik 'admin' atau 'guru1', auto-resolve ke email siakadnuja.sch.id
+        // Resolve email jika user memasukkan username (admin/guru1) atau NIP
+        $targetEmail = $input;
         if (! filter_var($input, FILTER_VALIDATE_EMAIL)) {
             if ($input === 'admin') {
-                $input = 'admin@siakadnuja.sch.id';
+                $targetEmail = 'admin@siakadnuja.sch.id';
             } elseif (preg_match('/^guru\d+$/i', $input)) {
-                $input = strtolower($input) . '@siakadnuja.sch.id';
+                $targetEmail = strtolower($input) . '@siakadnuja.sch.id';
+            } else {
+                $guru = \App\Models\Guru::where('nip', $input)->first();
+                if ($guru !== null && $guru->user !== null) {
+                    $targetEmail = $guru->user->email;
+                }
             }
         }
 
+        // Cek status keaktifan user terlebih dahulu sebelum attempt
+        $user = \App\Models\User::where('email', $targetEmail)->first();
+        if ($user !== null && ! $user->is_active) {
+            return back()->withErrors([
+                'email' => 'Akun Anda dinonaktifkan. Hubungi administrator.',
+            ])->onlyInput('email');
+        }
+
         $credentials = [
-            'email' => $input,
+            'email' => $targetEmail,
             'password' => $password,
+            'is_active' => true,
         ];
 
         if (Auth::attempt($credentials, (bool) $request->boolean('remember'))) {
-            $user = Auth::user();
-
-            if ($user !== null && ! $user->is_active) {
-                Auth::logout();
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
-
-                return back()->withErrors([
-                    'email' => 'Akun Anda dinonaktifkan. Hubungi administrator.',
-                ])->onlyInput('email');
-            }
-
             $request->session()->regenerate();
 
             return redirect()->intended(route('dashboard'));
