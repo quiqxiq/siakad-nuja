@@ -16,41 +16,78 @@ class WhatsappController extends Controller
     public function __construct(private readonly WhatsappGatewayService $gateway) {}
 
     /**
-     * Halaman utama: Status koneksi + QR code (jika perlu scan)
+     * Halaman utama: Status koneksi + QR code + Pairing code
      */
     public function index(): View
     {
-        $status     = $this->gateway->getStatus();
-        $qrUrl      = null;
+        $status      = $this->gateway->getStatus();
+        $qrUrl       = null;
+        $pairingCode = session('pairing_code') ?? ($status['code'] ?? null);
 
-        // Jika belum login, siapkan QR URL
-        if (in_array($status['status'] ?? '', ['SCAN_QR', 'DISCONNECTED'])) {
+        // Jika belum login, siapkan QR URL & Pairing Code jika ada
+        if (in_array($status['status'] ?? '', ['SCAN_QR', 'DISCONNECTED', 'PAIRING_CODE'])) {
             $qrUrl = $this->gateway->getQrCode();
+            if (! $pairingCode) {
+                $pairingCode = $this->gateway->getPairingCode();
+            }
         }
 
         $totalNotif  = NotifikasiWhatsapp::count();
         $totalGagal  = NotifikasiWhatsapp::where('status', 'gagal')->count();
         $totalSesi   = \App\Models\ChatbotSession::count();
 
-        return view('whatsapp.index', compact('status', 'qrUrl', 'totalNotif', 'totalGagal', 'totalSesi'));
+        return view('whatsapp.index', compact('status', 'qrUrl', 'pairingCode', 'totalNotif', 'totalGagal', 'totalSesi'));
     }
 
     /**
-     * AJAX endpoint — cek status koneksi Go-WA (polling dari frontend)
+     * AJAX endpoint — cek status koneksi WhatsApp (polling dari frontend)
      */
     public function statusAjax(): \Illuminate\Http\JsonResponse
     {
         $status = $this->gateway->getStatus();
         $qrUrl  = null;
+        $code   = $status['code'] ?? null;
 
-        if (in_array($status['status'] ?? '', ['SCAN_QR', 'DISCONNECTED'])) {
+        if (in_array($status['status'] ?? '', ['SCAN_QR', 'DISCONNECTED', 'PAIRING_CODE'])) {
             $qrUrl = $this->gateway->getQrCode();
+            if (! $code) {
+                $code = $this->gateway->getPairingCode();
+            }
         }
 
         return response()->json([
             'status' => $status,
             'qr'     => $qrUrl,
+            'code'   => $code,
         ]);
+    }
+
+    /**
+     * Request WhatsApp Pairing Code dengan nomor HP
+     */
+    public function pairingCode(Request $request): \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+    {
+        $request->validate([
+            'no_hp' => 'required|string|min:8|max:25',
+        ], [
+            'no_hp.required' => 'Nomor WhatsApp wajib diisi.',
+            'no_hp.min'      => 'Nomor WhatsApp terlalu pendek.',
+        ]);
+
+        $result = $this->gateway->requestPairingCode((string) $request->input('no_hp'));
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json($result, $result['success'] ? 200 : 422);
+        }
+
+        if ($result['success']) {
+            return redirect()->route('whatsapp.index')
+                ->with('success', $result['message'])
+                ->with('pairing_code', $result['code']);
+        }
+
+        return redirect()->route('whatsapp.index')
+            ->with('error', $result['message']);
     }
 
     /**

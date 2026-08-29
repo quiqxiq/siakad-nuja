@@ -1,7 +1,7 @@
 {{-- Navbar publik — transparan lalu solid saat scroll --}}
 <header class="fixed inset-x-0 top-0 z-50 transition-all duration-500"
         :class="scrolled
-            ? 'border-b border-white/10 bg-slate-950/90 backdrop-blur-2xl shadow-lg shadow-black/20'
+            ? 'border-b border-slate-200/80 bg-white/85 dark:border-white/10 dark:bg-slate-950/90 backdrop-blur-2xl shadow-lg shadow-slate-900/5 dark:shadow-black/20'
             : 'border-b border-transparent'">
     <nav class="mx-auto flex h-18 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8" style="height:70px">
 
@@ -11,11 +11,11 @@
                 <img src="{{ asset('images/logo.png') }}" alt="Logo Yayasan Nurul Jadid Karduluk YANUJA" class="h-full w-full object-contain filter drop-shadow-[0_2px_8px_rgba(0,140,227,0.45)]">
             </div>
             <div class="leading-tight">
-                <div class="text-sm font-black tracking-tight text-white flex items-center gap-1.5">
+                <div class="text-sm font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
                     <span>SIAKAD NUJA</span>
-                    <span class="rounded-md bg-sky-500/20 px-1.5 py-0.5 text-[9px] font-bold text-sky-300 border border-sky-500/30">YANUJA</span>
+                    <span class="rounded-md bg-sky-500/15 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300 px-1.5 py-0.5 text-[9px] font-bold border border-sky-500/30">YANUJA</span>
                 </div>
-                <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">Nurul Jadid · Karduluk Sumenep</div>
+                <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-300">Nurul Jadid · Karduluk Sumenep</div>
             </div>
         </a>
 
@@ -23,7 +23,7 @@
         <div class="hidden items-center gap-1 md:flex">
             @foreach (['#beranda' => 'Beranda', '#tentang' => 'Tentang', '#galeri' => 'Galeri', '#statistik' => 'Pencapaian'] as $href => $label)
                 <a href="{{ $href }}"
-                   class="rounded-full px-4 py-2 text-sm font-medium text-slate-300 transition-all hover:bg-white/10 hover:text-white">
+                   class="rounded-full px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200/60 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white transition-all">
                     {{ $label }}
                 </a>
             @endforeach
@@ -32,7 +32,7 @@
         {{-- Aksi --}}
         <div class="flex items-center gap-2">
             <button @click="dark = !dark"
-                    class="rounded-full p-2.5 text-slate-400 transition hover:bg-white/10 hover:text-white"
+                    class="rounded-full p-2.5 text-slate-600 hover:bg-slate-200/60 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white transition"
                     title="Ganti tema" aria-label="Ganti tema">
                 <x-icon name="sun" class="hidden h-5 w-5 dark:block" />
                 <x-icon name="moon" class="block h-5 w-5 dark:hidden" />

@@ -119,10 +119,12 @@ class WhatsappGatewayService
         try {
             $sessionState = WhatsApp::web('main')->state();
             $state        = strtolower($sessionState['status'] ?? 'disconnected');
+            $code         = $sessionState['code'] ?? null;
 
             $statusStr = match ($state) {
                 'ready', 'authenticated' => 'CONNECTED',
                 'qr'                     => 'SCAN_QR',
+                'code'                   => 'PAIRING_CODE',
                 default                  => 'DISCONNECTED',
             };
 
@@ -132,10 +134,57 @@ class WhatsappGatewayService
                 'is_logged_in' => in_array($state, ['ready', 'authenticated'], true),
                 'jid'          => $sessionState['id'] ?? 'main',
                 'device_id'    => 'laravel-whatsapp-sidecar',
+                'code'         => $code,
             ];
         } catch (\Exception $e) {
             Log::warning('[LaravelWhatsApp] tidak bisa cek status sidecar: ' . $e->getMessage());
             return ['status' => 'DISCONNECTED', 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Request WhatsApp Pairing Code dengan nomor telepon.
+     *
+     * @return array{success: bool, code: ?string, status?: string, message: string}
+     */
+    public function requestPairingCode(string $noHp): array
+    {
+        try {
+            $cleanPhone = $this->normalisasiNomor($noHp);
+            /** @var \Kstmostofa\LaravelWhatsApp\Web\WebClient $client */
+            $client = WhatsApp::web('main')->client();
+            $response = $client->request('POST', 'sessions/main/pairing-code', [
+                'json' => ['phoneNumber' => $cleanPhone],
+            ]);
+
+            return [
+                'success' => true,
+                'code'    => $response['code'] ?? null,
+                'status'  => $response['status'] ?? 'code',
+                'message' => 'Kode pairing berhasil dibuat. Masukkan kode ini pada WhatsApp di HP Anda.',
+            ];
+        } catch (\Throwable $e) {
+            Log::error('[LaravelWhatsApp] Request pairing code error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'code'    => null,
+                'message' => 'Gagal meminta kode pairing: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Ambil kode pairing aktif jika tersedia.
+     */
+    public function getPairingCode(): ?string
+    {
+        try {
+            /** @var \Kstmostofa\LaravelWhatsApp\Web\WebClient $client */
+            $client = WhatsApp::web('main')->client();
+            $response = $client->request('GET', 'sessions/main/pairing-code');
+            return $response['code'] ?? null;
+        } catch (\Throwable $e) {
+            return null;
         }
     }
 

@@ -6,7 +6,7 @@
     Desain: Ultra-premium portfolio dark theme — bukan SaaS generik.
 --}}
 <!DOCTYPE html>
-<html lang="id" x-data="{ dark: true, scrolled: false }" class="dark" x-cloak
+<html lang="id" x-data="{ dark: $persist(true), scrolled: false }" :class="{ 'dark': dark }" x-cloak
       @scroll.window="scrolled = window.scrollY > 20">
 <head>
     <meta charset="utf-8">
@@ -24,17 +24,17 @@
     <link rel="manifest" href="/site.webmanifest" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-brand-500/30 overflow-x-hidden">
+<body class="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased selection:bg-brand-500/30 overflow-x-hidden transition-colors duration-300">
 
     @include('landing.navbar')
 
     <main>
         @include('landing.hero')
         @include('landing.marquee')
-        @include('landing.roles')
+        <!-- @include('landing.roles') -->
         @include('landing.gallery')
         @include('landing.stats')
-        @include('landing.cta')
+        <!-- @include('landing.cta') -->
     </main>
 
     @include('landing.footer')

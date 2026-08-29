@@ -98,6 +98,7 @@ Route::middleware('auth')->group(function (): void {
             Route::get('/', [WhatsappController::class, 'index'])->name('index');
             Route::get('/status', [WhatsappController::class, 'statusAjax'])->name('status');
             Route::post('/login', [WhatsappController::class, 'login'])->name('login');
+            Route::post('/pairing-code', [WhatsappController::class, 'pairingCode'])->name('pairing-code');
             Route::post('/logout', [WhatsappController::class, 'logout'])->name('logout');
             Route::post('/reconnect', [WhatsappController::class, 'reconnect'])->name('reconnect');
             Route::get('/templates', [WhatsappController::class, 'templates'])->name('templates');

@@ -41,17 +41,17 @@
              x-transition:leave-start="opacity-100 translate-x-0"
              x-transition:leave-end="opacity-0 translate-x-4"
              @click="toggleOpen()"
-             class="hidden md:flex items-center gap-2 rounded-2xl bg-slate-900/95 border border-emerald-500/30 px-3 py-1.5 text-xs font-medium text-slate-200 shadow-2xl backdrop-blur-xl cursor-pointer hover:border-emerald-400/50 hover:bg-slate-900 transition group">
+             class="hidden md:flex items-center gap-2 rounded-2xl bg-white/95 border border-emerald-500/30 px-3 py-1.5 text-xs font-medium text-slate-800 shadow-xl dark:bg-slate-900/95 dark:text-slate-200 dark:shadow-2xl backdrop-blur-xl cursor-pointer hover:border-emerald-400/50 hover:bg-white dark:hover:bg-slate-900 transition group">
             <span class="relative flex h-2 w-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 dark:bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-600 dark:bg-emerald-500"></span>
             </span>
             <div class="flex flex-col text-right">
-                <span class="font-bold text-emerald-400 flex items-center justify-end gap-1 text-[11px]">
+                <span class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-end gap-1 text-[11px]">
                     Chatbot SIAKAD Yanuja
-                    <span class="bg-emerald-500/20 text-emerald-300 text-[8px] px-1 py-0.2 rounded-full border border-emerald-500/30">Live</span>
+                    <span class="bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 text-[8px] px-1 py-0.2 rounded-full border border-emerald-500/30">Live</span>
                 </span>
-                <span class="text-[10px] text-slate-400 group-hover:text-slate-300 transition">Klik untuk simulasi balasan</span>
+                <span class="text-[10px] text-slate-500 group-hover:text-slate-700 dark:text-slate-400 dark:group-hover:text-slate-300 transition">Klik untuk simulasi balasan</span>
             </div>
         </div>
     </div>
