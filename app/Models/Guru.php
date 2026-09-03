@@ -37,4 +37,66 @@ class Guru extends Model
     {
         return $this->hasMany(JadwalPelajaran::class, 'guru_id');
     }
+
+    /**
+     * ID seluruh kelas yang dapat diakses guru (kelas ajar + kelas perwalian).
+     *
+     * @return array<int>
+     */
+    public function accessibleKelasIds(): array
+    {
+        $diampu = $this->jadwal()->pluck('kelas_id')->all();
+        $diwalikan = $this->kelasWali()->pluck('id')->all();
+
+        return array_values(array_unique([...$diampu, ...$diwalikan]));
+    }
+
+    /**
+     * ID kelas yang diajar oleh guru ini di jadwal pelajaran.
+     *
+     * @return array<int>
+     */
+    public function teachingKelasIds(): array
+    {
+        return $this->jadwal()->pluck('kelas_id')->unique()->values()->all();
+    }
+
+    /**
+     * ID mata pelajaran yang diajar oleh guru ini di jadwal pelajaran.
+     *
+     * @return array<int>
+     */
+    public function teachingMapelIds(): array
+    {
+        return $this->jadwal()->pluck('mapel_id')->unique()->values()->all();
+    }
+
+    /**
+     * ID kelas yang diwalikan oleh guru ini.
+     *
+     * @return array<int>
+     */
+    public function waliKelasIds(): array
+    {
+        return $this->kelasWali()->pluck('id')->values()->all();
+    }
+
+    /**
+     * Cek apakah guru adalah wali kelas dari kelas tertentu.
+     */
+    public function isWaliKelasFor(int $kelasId): bool
+    {
+        return $this->kelasWali()->where('id', $kelasId)->exists();
+    }
+
+    /**
+     * Cek apakah guru mengajar mapel tertentu di kelas tertentu.
+     */
+    public function isTeaching(int $kelasId, int $mapelId): bool
+    {
+        return $this->jadwal()
+            ->where('kelas_id', $kelasId)
+            ->where('mapel_id', $mapelId)
+            ->exists();
+    }
 }

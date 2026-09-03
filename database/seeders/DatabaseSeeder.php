@@ -400,7 +400,7 @@ class DatabaseSeeder extends Seeder
                     'nilai_uts' => $uts,
                     'nilai_uas' => $uas,
                     'nilai_akhir' => $akhir,
-                    'predikat' => Nilai::hitungPredikat($akhir),
+                    'predikat' => Nilai::hitungPredikat($akhir, $mapel->kkm),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];

@@ -28,7 +28,8 @@ class NilaiPolicy
 
     public function view(User $user, Nilai $nilai): bool
     {
-        return $this->mengampuKelasMapel($user, $nilai->kelas_id, $nilai->mapel_id);
+        return $this->mengampuKelasMapel($user, (int) $nilai->kelas_id, (int) $nilai->mapel_id)
+            || $this->isWaliKelas($user, (int) $nilai->kelas_id);
     }
 
     public function create(User $user): bool
@@ -38,19 +39,20 @@ class NilaiPolicy
 
     public function update(User $user, Nilai $nilai): bool
     {
-        return $this->mengampuKelasMapel($user, $nilai->kelas_id, $nilai->mapel_id);
+        // Hanya guru pengampu mapel yang boleh mengubah nilai
+        return $this->mengampuKelasMapel($user, (int) $nilai->kelas_id, (int) $nilai->mapel_id);
     }
 
     public function delete(User $user, Nilai $nilai): bool
     {
-        return $this->mengampuKelasMapel($user, $nilai->kelas_id, $nilai->mapel_id);
+        // Hanya guru pengampu mapel yang boleh menghapus nilai
+        return $this->mengampuKelasMapel($user, (int) $nilai->kelas_id, (int) $nilai->mapel_id);
     }
 
     /**
-     * Guru boleh menyentuh nilai jika ia mengampu mapel di kelas tersebut
-     * (punya jadwal), atau menjadi wali kelas tersebut.
+     * Cek apakah guru mengajar mapel di kelas tersebut sesuai jadwal.
      */
-    private function mengampuKelasMapel(User $user, int $kelasId, int $mapelId): bool
+    public function mengampuKelasMapel(User $user, int $kelasId, int $mapelId): bool
     {
         $guru = $user->guru;
 
@@ -58,15 +60,20 @@ class NilaiPolicy
             return false;
         }
 
-        $mengampu = $guru->jadwal()
-            ->where('kelas_id', $kelasId)
-            ->where('mapel_id', $mapelId)
-            ->exists();
+        return $guru->isTeaching($kelasId, $mapelId);
+    }
 
-        $waliKelas = $guru->kelasWali()
-            ->where('id', $kelasId)
-            ->exists();
+    /**
+     * Cek apakah guru adalah wali kelas dari kelas tersebut.
+     */
+    public function isWaliKelas(User $user, int $kelasId): bool
+    {
+        $guru = $user->guru;
 
-        return $mengampu || $waliKelas;
+        if ($guru === null) {
+            return false;
+        }
+
+        return $guru->isWaliKelasFor($kelasId);
     }
 }

@@ -14,6 +14,16 @@ class JadwalPelajaranRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('hari')) {
+            $hari = (string) $this->input('hari');
+            if (strcasecmp($hari, 'Ahad') === 0) {
+                $this->merge(['hari' => 'Minggu']);
+            }
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -23,7 +33,7 @@ class JadwalPelajaranRequest extends FormRequest
             'kelas_id' => ['required', 'exists:kelas,id'],
             'mapel_id' => ['required', 'exists:mata_pelajaran,id'],
             'guru_id' => ['required', 'exists:guru,id'],
-            'hari' => ['required', Rule::in(['Sabtu', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis'])],
+            'hari' => ['required', Rule::in(['Sabtu', 'Minggu', 'Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis'])],
             'jam_ke' => ['required', 'integer', 'min:1', 'max:15'],
             'jam_mulai' => ['required', 'date_format:H:i'],
             'jam_selesai' => ['required', 'date_format:H:i', 'after:jam_mulai'],
@@ -43,6 +53,28 @@ class JadwalPelajaranRequest extends FormRequest
                 },
             ],
         ];
+    }
+
+    /**
+     * Jalankan validasi anti-bentrok jadwal (Guru, Kelas, Ruangan).
+     */
+    public function withValidator(\Illuminate\Validation\Validator $validator): void
+    {
+        $validator->after(function ($validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $param = $this->route('jadwal');
+            $ignoreId = is_object($param) ? (int) $param->id : (is_numeric($param) ? (int) $param : null);
+
+            $service = app(\App\Services\JadwalConflictService::class);
+            $conflicts = $service->checkConflict($this->all(), $ignoreId);
+
+            foreach ($conflicts as $field => $message) {
+                $validator->errors()->add($field, $message);
+            }
+        });
     }
 
     /**

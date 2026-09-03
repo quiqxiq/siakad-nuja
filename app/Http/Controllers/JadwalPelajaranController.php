@@ -18,17 +18,22 @@ class JadwalPelajaranController extends Controller
     {
         $user = request()->user();
         $isGuru = $user?->isGuru();
-        $userGuruId = $user?->guru?->id;
+        $guru = $user?->guru;
+        $guruId = $guru?->id;
 
-        $hasFilter = request()->hasAny(['search', 'guru_id', 'kelas_id', 'hari']);
-        $selectedGuruId = request('guru_id');
-
-        if (! $hasFilter && $isGuru && $userGuruId) {
-            $selectedGuruId = (string) $userGuruId;
-        }
+        $tab = request('tab', 'saya'); // 'saya', 'perwalian', 'semua'
 
         $jadwal = JadwalPelajaran::with(['kelas', 'mapel', 'guru'])
-            ->when($selectedGuruId, fn ($query, $id) => $query->where('guru_id', $id))
+            ->when($isGuru, function ($query) use ($guru, $tab): void {
+                if ($tab === 'perwalian') {
+                    $waliKelasIds = $guru?->waliKelasIds() ?? [];
+                    $query->whereIn('kelas_id', $waliKelasIds ?: [0]);
+                } else {
+                    // Default 'saya' (mengajar)
+                    $query->where('guru_id', $guru?->id ?? 0);
+                }
+            })
+            ->when(! $isGuru && request('guru_id'), fn ($query, $id) => $query->where('guru_id', $id))
             ->when(request('search'), function ($query, $search): void {
                 $query->where(function ($q) use ($search): void {
                     $q->whereHas('mapel', fn ($sub) => $sub->where('nama_mapel', 'like', "%{$search}%"))
@@ -44,10 +49,16 @@ class JadwalPelajaranController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $kelasList = Kelas::orderBy('nama_kelas')->get();
-        $guruList = Guru::orderBy('nama_lengkap')->get();
+        if ($isGuru) {
+            $accessibleKelasIds = $guru?->accessibleKelasIds() ?? [];
+            $kelasList = Kelas::whereIn('id', $accessibleKelasIds ?: [0])->orderBy('nama_kelas')->get();
+            $guruList = collect();
+        } else {
+            $kelasList = Kelas::orderBy('nama_kelas')->get();
+            $guruList = Guru::orderBy('nama_lengkap')->get();
+        }
 
-        return view('jadwal.index', compact('jadwal', 'kelasList', 'guruList', 'selectedGuruId'));
+        return view('jadwal.index', compact('jadwal', 'kelasList', 'guruList', 'isGuru', 'tab'));
     }
 
     public function create(): View

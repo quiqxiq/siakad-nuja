@@ -32,6 +32,11 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useTailwind();
 
+        // Register Policies
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\Siswa::class, \App\Policies\SiswaPolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\Nilai::class, \App\Policies\NilaiPolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\Absensi::class, \App\Policies\AbsensiPolicy::class);
+
         // Register Observers untuk Notifikasi WhatsApp Otomatis
         Absensi::observe(AbsensiObserver::class);
         Nilai::observe(NilaiObserver::class);

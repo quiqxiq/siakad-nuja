@@ -55,4 +55,18 @@ class Kelas extends Model
 
         return "Kelas {$this->nama_kelas}";
     }
+
+    /**
+     * Scope query untuk membatasi kelas hanya pada yang dapat diakses user.
+     */
+    public function scopeAccessibleBy(\Illuminate\Database\Eloquent\Builder $query, ?User $user): \Illuminate\Database\Eloquent\Builder
+    {
+        if (! $user || $user->isAdmin()) {
+            return $query;
+        }
+
+        $accessibleIds = $user->accessibleKelasIds();
+
+        return $query->whereIn('id', $accessibleIds ?: [0]);
+    }
 }

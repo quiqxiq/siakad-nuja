@@ -69,4 +69,18 @@ class User extends Authenticatable
     {
         return $this->hasMany(Pengumuman::class, 'dibuat_oleh');
     }
+
+    /**
+     * ID seluruh kelas yang dapat diakses oleh user ini.
+     *
+     * @return array<int>|null Null bila admin (akses semua), array ID bila guru.
+     */
+    public function accessibleKelasIds(): ?array
+    {
+        if ($this->isAdmin()) {
+            return null;
+        }
+
+        return $this->guru?->accessibleKelasIds() ?? [];
+    }
 }

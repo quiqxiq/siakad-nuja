@@ -53,7 +53,11 @@ class Nilai extends Model
     }
 
     /**
-     * Hitung nilai akhir berbobot: harian 30%, UTS 30%, UAS 40%.
+     * Hitung nilai akhir berbobot adaptif:
+     * - Bila Harian, UTS, UAS lengkap: Harian 30%, UTS 30%, UAS 40%.
+     * - Bila hanya Harian & UTS (Tengah Semester): Harian 50%, UTS 50%.
+     * - Bila hanya Harian & UAS: Harian 40%, UAS 60%.
+     * - Bila hanya Harian: Harian 100%.
      * Mengembalikan null bila ketiga komponen kosong.
      */
     public static function hitungNilaiAkhir(float|int|string|null $harian, float|int|string|null $uts, float|int|string|null $uas): ?float
@@ -66,17 +70,38 @@ class Nilai extends Model
             return null;
         }
 
-        $hVal = $h ?? 0.0;
-        $uVal = $u ?? 0.0;
-        $aVal = $a ?? 0.0;
+        if ($h !== null && $u !== null && $a !== null) {
+            return round(($h * 0.3) + ($u * 0.3) + ($a * 0.4), 2);
+        }
 
-        return round(($hVal * 0.3) + ($uVal * 0.3) + ($aVal * 0.4), 2);
+        if ($h !== null && $u !== null && $a === null) {
+            return round(($h * 0.5) + ($u * 0.5), 2);
+        }
+
+        if ($h !== null && $u === null && $a !== null) {
+            return round(($h * 0.4) + ($a * 0.6), 2);
+        }
+
+        if ($h === null && $u !== null && $a !== null) {
+            return round(($u * 0.4) + ($a * 0.6), 2);
+        }
+
+        if ($h !== null) {
+            return round($h, 2);
+        }
+
+        if ($u !== null) {
+            return round($u, 2);
+        }
+
+        return round((float) $a, 2);
     }
 
     /**
-     * Tentukan predikat huruf dari nilai akhir.
+     * Tentukan predikat huruf dari nilai akhir berdasarkan KKM mata pelajaran.
+     * Interval: (100 - KKM) / 3
      */
-    public static function hitungPredikat(float|int|string|null $nilaiAkhir): ?string
+    public static function hitungPredikat(float|int|string|null $nilaiAkhir, ?int $kkm = null): ?string
     {
         if ($nilaiAkhir === null || $nilaiAkhir === '') {
             return null;
@@ -84,12 +109,47 @@ class Nilai extends Model
 
         $val = (float) $nilaiAkhir;
 
+        if ($kkm !== null && $kkm > 0 && $kkm < 100) {
+            $interval = (100 - $kkm) / 3.0;
+            $minB = $kkm + $interval;
+            $minA = $kkm + (2 * $interval);
+
+            return match (true) {
+                $val >= $minA => 'A',
+                $val >= $minB => 'B',
+                $val >= $kkm  => 'C',
+                default       => 'D',
+            };
+        }
+
         return match (true) {
             $val >= 90 => 'A',
             $val >= 80 => 'B',
             $val >= 70 => 'C',
             $val >= 60 => 'D',
-            default => 'E',
+            default    => 'E',
         };
+    }
+
+    /**
+     * Status kelulusan / ketuntasan nilai terhadap KKM mapel.
+     */
+    public function getStatusKetuntasanAttribute(): string
+    {
+        if ($this->nilai_akhir === null) {
+            return 'Belum Dinilai';
+        }
+
+        $kkm = $this->mapel?->kkm ?? 75;
+
+        return (float) $this->nilai_akhir >= $kkm ? 'Tuntas' : 'Belum Tuntas';
+    }
+
+    /**
+     * Cek apakah seluruh komponen nilai (Harian, UTS, UAS) sudah lengkap diisi.
+     */
+    public function isLengkap(): bool
+    {
+        return $this->nilai_harian !== null && $this->nilai_uts !== null && $this->nilai_uas !== null;
     }
 }

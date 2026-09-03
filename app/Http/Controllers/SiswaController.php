@@ -18,7 +18,10 @@ class SiswaController extends Controller
 {
     public function index(): View
     {
+        $user = request()->user();
+
         $siswa = Siswa::with('kelas')
+            ->accessibleBy($user)
             ->when(request('q'), function ($query, string $q): void {
                 $query->where('nama_lengkap', 'like', "%{$q}%")
                     ->orWhere('nis', 'like', "%{$q}%");
@@ -28,7 +31,7 @@ class SiswaController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $kelasList = Kelas::orderBy('nama_kelas')->get();
+        $kelasList = Kelas::accessibleBy($user)->orderBy('nama_kelas')->get();
 
         return view('siswa.index', compact('siswa', 'kelasList'));
     }
@@ -55,6 +58,8 @@ class SiswaController extends Controller
 
     public function show(Siswa $siswa): View
     {
+        $this->authorize('view', $siswa);
+
         $siswa->load('kelas', 'orangTua', 'nilai.mapel', 'absensi.jadwal.mapel');
 
         return view('siswa.show', compact('siswa'));
@@ -99,6 +104,8 @@ class SiswaController extends Controller
      */
     public function kirimTeguran(Request $request, Siswa $siswa): RedirectResponse
     {
+        $this->authorize('kirimTeguran', $siswa);
+
         $request->validate([
             'jenis_teguran'    => ['required', 'string', 'max:100'],
             'catatan'          => ['required', 'string', 'max:1000'],

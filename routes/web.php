@@ -44,6 +44,12 @@ Route::middleware('auth')->group(function (): void {
     |--------------------------------------------------------------------------
     */
     Route::middleware('role:admin,guru')->group(function (): void {
+        // Entri Nilai Massal (Matrix Form) & Buku Leger Kelas (Peringkat Otomatis)
+        Route::get('nilai/matrix', [NilaiController::class, 'matrix'])->name('nilai.matrix');
+        Route::post('nilai/matrix', [NilaiController::class, 'storeMatrix'])->name('nilai.matrix.store');
+        Route::get('nilai/leger', [NilaiController::class, 'leger'])->name('nilai.leger');
+        Route::get('nilai/leger/export', [NilaiController::class, 'exportLeger'])->name('nilai.leger.export');
+
         Route::resource('nilai', NilaiController::class);
 
         // Absensi: alur entri massal (bukan resource standar)

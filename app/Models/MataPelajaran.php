@@ -31,4 +31,18 @@ class MataPelajaran extends Model
     {
         return $this->hasMany(Nilai::class, 'mapel_id');
     }
+
+    /**
+     * Scope query untuk membatasi mapel hanya pada yang diajar oleh guru.
+     */
+    public function scopeAccessibleBy(\Illuminate\Database\Eloquent\Builder $query, ?User $user): \Illuminate\Database\Eloquent\Builder
+    {
+        if (! $user || $user->isAdmin()) {
+            return $query;
+        }
+
+        $mapelIds = $user->guru?->teachingMapelIds() ?? [];
+
+        return $query->whereIn('id', $mapelIds ?: [0]);
+    }
 }

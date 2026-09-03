@@ -67,4 +67,18 @@ class Siswa extends Model
             ->orderByDesc('is_kontak_utama')
             ->first();
     }
+
+    /**
+     * Scope query untuk membatasi siswa hanya pada kelas yang dapat diakses oleh user.
+     */
+    public function scopeAccessibleBy(\Illuminate\Database\Eloquent\Builder $query, ?User $user): \Illuminate\Database\Eloquent\Builder
+    {
+        if (! $user || $user->isAdmin()) {
+            return $query;
+        }
+
+        $accessibleIds = $user->accessibleKelasIds();
+
+        return $query->whereIn('kelas_id', $accessibleIds ?: [0]);
+    }
 }

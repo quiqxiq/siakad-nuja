@@ -100,7 +100,8 @@ class LaporanController extends Controller
                 ->get();
 
             foreach ($jadwalRaw as $j) {
-                $matrix[$j->hari][$j->jam_ke][$j->kelas_id] = [
+                $hKey = strcasecmp($j->hari, 'Minggu') === 0 ? 'Ahad' : $j->hari;
+                $matrix[$hKey][$j->jam_ke][$j->kelas_id] = [
                     'mapel'       => $j->mapel->nama_mapel ?? '-',
                     'guru'        => $j->guru->nama_lengkap ?? '-',
                     'jam_mulai'   => $j->jam_mulai,
@@ -132,7 +133,8 @@ class LaporanController extends Controller
                 $jadwalRaw = $jadwalQuery->get();
 
                 foreach ($jadwalRaw as $j) {
-                    $matrix[$j->hari][$j->jam_ke] = [
+                    $hKey = strcasecmp($j->hari, 'Minggu') === 0 ? 'Ahad' : $j->hari;
+                    $matrix[$hKey][$j->jam_ke] = [
                         'mapel'       => $j->mapel->nama_mapel ?? '-',
                         'guru'        => $j->guru->nama_lengkap ?? '-',
                         'jam_mulai'   => $j->jam_mulai,
@@ -152,7 +154,8 @@ class LaporanController extends Controller
                     ->get();
 
                 foreach ($jadwalRaw as $j) {
-                    $matrix[$j->hari][$j->jam_ke][] = [
+                    $hKey = strcasecmp($j->hari, 'Minggu') === 0 ? 'Ahad' : $j->hari;
+                    $matrix[$hKey][$j->jam_ke][] = [
                         'kelas'       => $j->kelas->nama_kelas ?? '-',
                         'jenjang'     => $j->kelas->jenjang ?? '-',
                         'mapel'       => $j->mapel->nama_mapel ?? '-',

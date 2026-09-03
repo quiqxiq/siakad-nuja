@@ -14,7 +14,10 @@ class KelasController extends Controller
 {
     public function index(): View
     {
+        $user = request()->user();
+
         $kelas = Kelas::with('waliKelas')
+            ->accessibleBy($user)
             ->withCount('siswa')
             ->when(request('q'), fn ($query, string $q) => $query->where('nama_kelas', 'like', "%{$q}%"))
             ->orderBy('tingkat')
@@ -41,6 +44,14 @@ class KelasController extends Controller
 
     public function show(Kelas $kela): View
     {
+        $user = request()->user();
+        if ($user?->isGuru()) {
+            $accessible = $user->accessibleKelasIds() ?? [];
+            if (! in_array($kela->id, $accessible, true)) {
+                abort(403, 'Anda tidak memiliki akses ke data kelas ini.');
+            }
+        }
+
         $kela->load('waliKelas', 'siswa');
 
         return view('kelas.show', ['kelas' => $kela]);

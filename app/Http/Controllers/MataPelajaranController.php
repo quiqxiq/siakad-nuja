@@ -13,10 +13,13 @@ class MataPelajaranController extends Controller
 {
     public function index(): View
     {
-        $mapel = MataPelajaran::when(request('q'), function ($query, string $q): void {
-            $query->where('nama_mapel', 'like', "%{$q}%")
-                ->orWhere('kode_mapel', 'like', "%{$q}%");
-        })
+        $user = request()->user();
+
+        $mapel = MataPelajaran::accessibleBy($user)
+            ->when(request('q'), function ($query, string $q): void {
+                $query->where('nama_mapel', 'like', "%{$q}%")
+                    ->orWhere('kode_mapel', 'like', "%{$q}%");
+            })
             ->orderBy('nama_mapel')
             ->paginate(15)
             ->withQueryString();
