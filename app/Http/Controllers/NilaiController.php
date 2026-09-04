@@ -31,19 +31,17 @@ class NilaiController extends Controller
 
         $nilai = Nilai::with(['siswa', 'mapel', 'kelas'])
             ->when($isGuru, function ($query) use ($guru): void {
-                // Guru hanya melihat nilai kelas/mapel yang ia ampu atau ia walikan.
+                // Guru hanya melihat dan mengelola nilai kelas & mapel yang ia ampu.
                 $kelasMapel = $guru?->jadwal()->get(['kelas_id', 'mapel_id']) ?? collect();
-                $kelasWali = $guru?->kelasWali()->pluck('id') ?? collect();
 
-                $query->where(function ($q) use ($kelasMapel, $kelasWali): void {
+                $query->where(function ($q) use ($kelasMapel): void {
+                    if ($kelasMapel->isEmpty()) {
+                        $q->whereRaw('1 = 0');
+                        return;
+                    }
+
                     foreach ($kelasMapel as $km) {
                         $q->orWhere(fn ($sub) => $sub->where('kelas_id', $km->kelas_id)->where('mapel_id', $km->mapel_id));
-                    }
-                    if ($kelasWali->isNotEmpty()) {
-                        $q->orWhereIn('kelas_id', $kelasWali->all());
-                    }
-                    if ($kelasMapel->isEmpty() && $kelasWali->isEmpty()) {
-                        $q->whereRaw('1 = 0');
                     }
                 });
             })
@@ -61,9 +59,9 @@ class NilaiController extends Controller
             ->withQueryString();
 
         if ($isGuru) {
-            $accessibleKelasIds = $guru?->accessibleKelasIds() ?? [];
+            $teachingKelasIds = $guru?->teachingKelasIds() ?? [];
             $teachingMapelIds = $guru?->teachingMapelIds() ?? [];
-            $kelasList = Kelas::whereIn('id', $accessibleKelasIds ?: [0])->orderBy('nama_kelas')->get();
+            $kelasList = Kelas::whereIn('id', $teachingKelasIds ?: [0])->orderBy('nama_kelas')->get();
             $mapelList = MataPelajaran::whereIn('id', $teachingMapelIds ?: [0])->orderBy('nama_mapel')->get();
         } else {
             $kelasList = Kelas::orderBy('nama_kelas')->get();
@@ -422,18 +420,25 @@ class NilaiController extends Controller
         $guru = $user?->guru;
 
         if ($isGuru) {
-            $accessibleKelasIds = $guru?->accessibleKelasIds() ?? [];
+            $teachingKelasIds = $guru?->teachingKelasIds() ?? [];
             $teachingMapelIds = $guru?->teachingMapelIds() ?? [];
 
-            $kelas = Kelas::whereIn('id', $accessibleKelasIds ?: [0])->orderBy('nama_kelas')->get();
+            $kelas = Kelas::whereIn('id', $teachingKelasIds ?: [0])->orderBy('nama_kelas')->get();
             $mapel = MataPelajaran::whereIn('id', $teachingMapelIds ?: [0])->orderBy('nama_mapel')->get();
-            $siswa = Siswa::with('kelas')->whereIn('kelas_id', $accessibleKelasIds ?: [0])->orderBy('nama_lengkap')->get();
+            $siswa = Siswa::with('kelas')->whereIn('kelas_id', $teachingKelasIds ?: [0])->orderBy('nama_lengkap')->get();
+
+            $jadwalMapelByKelas = $guru?->jadwal()
+                ->get(['kelas_id', 'mapel_id'])
+                ->groupBy('kelas_id')
+                ->map(fn ($items) => $items->pluck('mapel_id')->unique()->values()->all())
+                ->all() ?? [];
         } else {
             $kelas = Kelas::orderBy('nama_kelas')->get();
             $mapel = MataPelajaran::orderBy('nama_mapel')->get();
             $siswa = Siswa::with('kelas')->orderBy('nama_lengkap')->get();
+            $jadwalMapelByKelas = null;
         }
 
-        return compact('siswa', 'mapel', 'kelas');
+        return compact('siswa', 'mapel', 'kelas', 'jadwalMapelByKelas');
     }
 }

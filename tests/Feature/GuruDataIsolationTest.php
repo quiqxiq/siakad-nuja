@@ -136,4 +136,72 @@ class GuruDataIsolationTest extends TestCase
             'nilai_harian' => 95,
         ]);
     }
+
+    public function test_guru_who_is_wali_kelas_only_sees_taught_subjects_in_nilai_index(): void
+    {
+        // Kelas Ajar (Kelas 7A) & Kelas Perwalian (Kelas 7B)
+        $kelasAjar = Kelas::create(['nama_kelas' => '7A', 'tingkat' => '7', 'jenjang' => 'MTs', 'tahun_ajaran' => '2024/2025']);
+        $kelasWali = Kelas::create(['nama_kelas' => '7B', 'tingkat' => '7', 'jenjang' => 'MTs', 'tahun_ajaran' => '2024/2025']);
+
+        $mapelMtk = MataPelajaran::factory()->create(['nama_mapel' => 'Matematika']);
+        $mapelIpa = MataPelajaran::factory()->create(['nama_mapel' => 'IPA']);
+
+        $userGuru = User::factory()->create(['role' => 'guru']);
+        $guru = Guru::create(['user_id' => $userGuru->id, 'nip' => '199501012020', 'nama_lengkap' => 'Guru Wali']);
+
+        // Guru menjadi wali kelas di Kelas 7B
+        $kelasWali->update(['wali_kelas_id' => $guru->id]);
+
+        // Guru HANYA mengajar Matematika di Kelas 7A
+        JadwalPelajaran::create([
+            'kelas_id' => $kelasAjar->id,
+            'mapel_id' => $mapelMtk->id,
+            'guru_id' => $guru->id,
+            'hari' => 'Senin',
+            'jam_ke' => 1,
+            'jam_mulai' => '07:00',
+            'jam_selesai' => '08:40',
+            'tahun_ajaran' => '2024/2025',
+        ]);
+
+        $siswaAjar = Siswa::create(['nis' => '3001', 'nama_lengkap' => 'Siswa Ajar', 'kelas_id' => $kelasAjar->id, 'tahun_masuk' => 2024, 'jenis_kelamin' => 'Laki-laki']);
+        $siswaWali = Siswa::create(['nis' => '3002', 'nama_lengkap' => 'Siswa Wali', 'kelas_id' => $kelasWali->id, 'tahun_masuk' => 2024, 'jenis_kelamin' => 'Perempuan']);
+
+        // Nilai Matematika di Kelas 7A (diampu)
+        Nilai::create([
+            'siswa_id' => $siswaAjar->id,
+            'kelas_id' => $kelasAjar->id,
+            'mapel_id' => $mapelMtk->id,
+            'semester' => 'Ganjil',
+            'tahun_ajaran' => '2024/2025',
+            'nilai_akhir' => 90,
+            'predikat' => 'A',
+        ]);
+
+        // Nilai IPA di Kelas 7B (kelas perwalian, tetapi diajar guru lain)
+        Nilai::create([
+            'siswa_id' => $siswaWali->id,
+            'kelas_id' => $kelasWali->id,
+            'mapel_id' => $mapelIpa->id,
+            'semester' => 'Ganjil',
+            'tahun_ajaran' => '2024/2025',
+            'nilai_akhir' => 80,
+            'predikat' => 'B',
+        ]);
+
+        // 1. Pada halaman nilai.index, guru HANYA boleh melihat nilai Matematika, TIDAK boleh melihat nilai IPA
+        $responseIndex = $this->actingAs($userGuru)->get(route('nilai.index'));
+        $responseIndex->assertOk();
+        $responseIndex->assertSee('Siswa Ajar');
+        $responseIndex->assertSee('Matematika');
+        $responseIndex->assertDontSee('Siswa Wali');
+        $responseIndex->assertDontSee('IPA');
+
+        // 2. Pada form nilai.create, dropdown kelas HANYA memuat Kelas 7A (Kelas Ajar), BUKAN Kelas 7B (Kelas Wali)
+        $responseCreate = $this->actingAs($userGuru)->get(route('nilai.create'));
+        $responseCreate->assertOk();
+        $kelasList = $responseCreate->viewData('kelas');
+        $this->assertTrue($kelasList->contains('id', $kelasAjar->id));
+        $this->assertFalse($kelasList->contains('id', $kelasWali->id));
+    }
 }

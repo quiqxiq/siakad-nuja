@@ -68,16 +68,20 @@ class RankingService
         })->values();
 
         // Assign Rank (dengan penanganan skor sama / tie-rank)
-        $rank = 1;
-        return $sorted->map(function ($item, $index) use (&$rank, $sorted) {
+        $prevScore = null;
+        $prevRank = null;
+
+        return $sorted->map(function ($item, $index) use (&$prevScore, &$prevRank) {
             if ($item['nilai_akhir'] === null) {
                 $item['rank'] = '-';
             } else {
-                if ($index > 0 && $sorted[$index - 1]['nilai_akhir'] !== null && $sorted[$index - 1]['nilai_akhir'] == $item['nilai_akhir']) {
-                    $item['rank'] = $sorted[$index - 1]['rank'];
+                if ($prevScore !== null && $prevScore == $item['nilai_akhir']) {
+                    $item['rank'] = $prevRank;
                 } else {
                     $item['rank'] = $index + 1;
+                    $prevRank = $item['rank'];
                 }
+                $prevScore = $item['nilai_akhir'];
             }
 
             return $item;
@@ -194,15 +198,20 @@ class RankingService
         })->values();
 
         // Assign Peringkat Kelas
-        $sortedWithRank = $sorted->map(function ($item, $index) use ($sorted) {
+        $prevTotal = null;
+        $prevRank = null;
+
+        $sortedWithRank = $sorted->map(function ($item, $index) use (&$prevTotal, &$prevRank) {
             if ($item['total_akhir'] === null) {
                 $item['rank'] = '-';
             } else {
-                if ($index > 0 && $sorted[$index - 1]['total_akhir'] !== null && $sorted[$index - 1]['total_akhir'] == $item['total_akhir']) {
-                    $item['rank'] = $sorted[$index - 1]['rank'];
+                if ($prevTotal !== null && $prevTotal == $item['total_akhir']) {
+                    $item['rank'] = $prevRank;
                 } else {
                     $item['rank'] = $index + 1;
+                    $prevRank = $item['rank'];
                 }
+                $prevTotal = $item['total_akhir'];
             }
 
             return $item;

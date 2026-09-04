@@ -1,19 +1,35 @@
 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2"
     x-data="{
         selectedKelas: '{{ old('kelas_id', $nilai->kelas_id ?? '') }}',
-        selectedSiswa: '{{ old('siswa_id', $nilai->siswa_id ?? '') }}'
+        selectedMapel: '{{ old('mapel_id', $nilai->mapel_id ?? '') }}',
+        selectedSiswa: '{{ old('siswa_id', $nilai->siswa_id ?? '') }}',
+        jadwalMapelByKelas: {{ json_encode($jadwalMapelByKelas ?? null) }},
+        isMapelAvailable(mapelId) {
+            if (!this.selectedKelas || !this.jadwalMapelByKelas) return true;
+            const allowed = this.jadwalMapelByKelas[this.selectedKelas];
+            return !allowed || allowed.includes(parseInt(mapelId));
+        },
+        onKelasChange() {
+            if (this.selectedMapel && !this.isMapelAvailable(this.selectedMapel)) {
+                this.selectedMapel = '';
+            }
+        }
     }">
-    <x-form.select label="Kelas" name="kelas_id" x-model="selectedKelas" required>
+    <x-form.select label="Kelas" name="kelas_id" x-model="selectedKelas" @change="onKelasChange()" :placeholder="false" required>
         <option value="">-- Pilih Kelas Terlebih Dahulu --</option>
         @foreach ($kelas as $k)
             <option value="{{ $k->id }}" @selected(old('kelas_id', $nilai->kelas_id ?? '') == $k->id)>{{ $k->nama_lengkap }}</option>
         @endforeach
     </x-form.select>
 
-    <x-form.select label="Mata Pelajaran" name="mapel_id" :selected="old('mapel_id', $nilai->mapel_id ?? '')" required>
+    <x-form.select label="Mata Pelajaran" name="mapel_id" x-model="selectedMapel" :placeholder="false" required>
         <option value="">-- Pilih Mata Pelajaran --</option>
         @foreach ($mapel as $m)
-            <option value="{{ $m->id }}" @selected(old('mapel_id', $nilai->mapel_id ?? '') == $m->id)>{{ $m->nama_mapel }} (KKM: {{ $m->kkm ?? 75 }})</option>
+            <option value="{{ $m->id }}"
+                x-show="isMapelAvailable('{{ $m->id }}')"
+                @selected(old('mapel_id', $nilai->mapel_id ?? '') == $m->id)>
+                {{ $m->nama_mapel }} (KKM: {{ $m->kkm ?? 75 }})
+            </option>
         @endforeach
     </x-form.select>
 

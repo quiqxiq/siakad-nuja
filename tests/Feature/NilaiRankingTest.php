@@ -120,4 +120,35 @@ class NilaiRankingTest extends TestCase
         $this->assertEquals('C', Nilai::hitungPredikat(78, 75));
         $this->assertEquals('D', Nilai::hitungPredikat(70, 75));
     }
+
+    public function test_automatic_ranking_handles_tied_scores_without_undefined_rank_error(): void
+    {
+        $kelas = Kelas::create(['nama_kelas' => '8A', 'tingkat' => '8', 'jenjang' => 'MTs', 'tahun_ajaran' => '2024/2025']);
+        $mapel = MataPelajaran::factory()->create(['nama_mapel' => 'IPA', 'kkm' => 75]);
+
+        $siswaA = Siswa::create(['nis' => '2001', 'nama_lengkap' => 'Siswa A', 'kelas_id' => $kelas->id, 'tahun_masuk' => 2024, 'jenis_kelamin' => 'Laki-laki']);
+        $siswaB = Siswa::create(['nis' => '2002', 'nama_lengkap' => 'Siswa B', 'kelas_id' => $kelas->id, 'tahun_masuk' => 2024, 'jenis_kelamin' => 'Laki-laki']);
+        $siswaC = Siswa::create(['nis' => '2003', 'nama_lengkap' => 'Siswa C', 'kelas_id' => $kelas->id, 'tahun_masuk' => 2024, 'jenis_kelamin' => 'Perempuan']);
+
+        // Nilai Siswa A dan B sama persis (85), Siswa C (70)
+        Nilai::create(['siswa_id' => $siswaA->id, 'kelas_id' => $kelas->id, 'mapel_id' => $mapel->id, 'semester' => 'Ganjil', 'tahun_ajaran' => '2024/2025', 'nilai_akhir' => 85, 'predikat' => 'B']);
+        Nilai::create(['siswa_id' => $siswaB->id, 'kelas_id' => $kelas->id, 'mapel_id' => $mapel->id, 'semester' => 'Ganjil', 'tahun_ajaran' => '2024/2025', 'nilai_akhir' => 85, 'predikat' => 'B']);
+        Nilai::create(['siswa_id' => $siswaC->id, 'kelas_id' => $kelas->id, 'mapel_id' => $mapel->id, 'semester' => 'Ganjil', 'tahun_ajaran' => '2024/2025', 'nilai_akhir' => 70, 'predikat' => 'D']);
+
+        $service = app(RankingService::class);
+
+        // 1. Uji getLegerKelas tidak melempar Undefined array key "rank"
+        $leger = $service->getLegerKelas($kelas->id, 'Ganjil', '2024/2025');
+        $rows = $leger['rows'];
+
+        $this->assertEquals(1, $rows[0]['rank']);
+        $this->assertEquals(1, $rows[1]['rank']);
+        $this->assertEquals(3, $rows[2]['rank']);
+
+        // 2. Uji getPeringkatMapel tidak melempar Undefined array key "rank"
+        $mapelRank = $service->getPeringkatMapel($kelas->id, $mapel->id, 'Ganjil', '2024/2025');
+        $this->assertEquals(1, $mapelRank[0]['rank']);
+        $this->assertEquals(1, $mapelRank[1]['rank']);
+        $this->assertEquals(3, $mapelRank[2]['rank']);
+    }
 }
