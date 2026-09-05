@@ -55,6 +55,11 @@ class User extends Authenticatable
         return $this->role === self::ROLE_GURU;
     }
 
+    public function isWaliKelas(): bool
+    {
+        return $this->isGuru() && ($this->guru?->kelasWali()->exists() ?? false);
+    }
+
     public function hasRole(string $role): bool
     {
         return $this->role === $role;

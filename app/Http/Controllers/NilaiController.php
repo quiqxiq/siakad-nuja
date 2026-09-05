@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\NilaiRequest;
+use App\Models\JadwalPelajaran;
 use App\Models\Kelas;
+use App\Models\Konfigurasi;
 use App\Models\MataPelajaran;
 use App\Models\Nilai;
 use App\Models\Siswa;
@@ -107,8 +109,8 @@ class NilaiController extends Controller
         }
 
         $selectedMapelId = $request->filled('mapel_id') ? (int) $request->input('mapel_id') : ($mapelList->first()?->id ?? null);
-        $semester = $request->input('semester', 'Ganjil');
-        $tahunAjaran = $request->input('tahun_ajaran', date('Y') . '/' . (date('Y') + 1));
+        $semester = $request->input('semester', Konfigurasi::semesterAktif());
+        $tahunAjaran = $request->input('tahun_ajaran', Konfigurasi::tahunAjaranAktif());
 
         $matrixData = null;
         $selectedKelas = null;
@@ -235,32 +237,24 @@ class NilaiController extends Controller
     }
 
     /**
-     * Halaman Buku Leger Nilai & Peringkat Kelas.
+     * Halaman Buku Leger Nilai & Peringkat Kelas (Khusus Admin).
      */
     public function leger(Request $request): View
     {
         $user = $request->user();
-        $isGuru = $user?->isGuru();
-        $guru = $user?->guru;
 
-        if ($isGuru) {
-            $accessibleKelasIds = $guru?->accessibleKelasIds() ?? [];
-            $kelasList = Kelas::whereIn('id', $accessibleKelasIds ?: [0])->orderBy('nama_kelas')->get();
-        } else {
-            $kelasList = Kelas::orderBy('nama_kelas')->get();
+        if (! $user?->isAdmin()) {
+            abort(403, 'Akses ditolak. Buku leger dan peringkat kelas hanya dapat diakses oleh Administrator.');
         }
 
+        $kelasList = Kelas::orderBy('nama_kelas')->get();
         $selectedKelasId = $request->filled('kelas_id') ? (int) $request->input('kelas_id') : ($kelasList->first()?->id ?? null);
-        $semester = $request->input('semester', 'Ganjil');
-        $tahunAjaran = $request->input('tahun_ajaran', date('Y') . '/' . (date('Y') + 1));
+        $semester = $request->input('semester', Konfigurasi::semesterAktif());
+        $tahunAjaran = $request->input('tahun_ajaran', Konfigurasi::tahunAjaranAktif());
 
         $legerData = null;
 
         if ($selectedKelasId) {
-            if ($isGuru && ! in_array($selectedKelasId, $guru?->accessibleKelasIds() ?? [], true)) {
-                abort(403, 'Anda tidak memiliki akses ke buku leger kelas ini.');
-            }
-
             $legerData = $this->rankingService->getLegerKelas($selectedKelasId, $semester, $tahunAjaran);
         }
 
@@ -274,13 +268,15 @@ class NilaiController extends Controller
     }
 
     /**
-     * Ekspor Buku Leger Nilai ke PDF atau Excel.
+     * Ekspor Buku Leger Nilai ke PDF atau Excel (Khusus Admin).
      */
     public function exportLeger(Request $request)
     {
         $user = $request->user();
-        $isGuru = $user?->isGuru();
-        $guru = $user?->guru;
+
+        if (! $user?->isAdmin()) {
+            abort(403, 'Akses ditolak. Unduh buku leger hanya dapat dilakukan oleh Administrator.');
+        }
 
         $validated = $request->validate([
             'kelas_id' => ['required', 'exists:kelas,id'],
@@ -293,10 +289,6 @@ class NilaiController extends Controller
         $semester = $validated['semester'];
         $tahunAjaran = $validated['tahun_ajaran'];
         $format = $validated['format'] ?? 'pdf';
-
-        if ($isGuru && ! in_array($kelasId, $guru?->accessibleKelasIds() ?? [], true)) {
-            abort(403, 'Anda tidak memiliki wewenang mengunduh leger kelas ini.');
-        }
 
         $legerData = $this->rankingService->getLegerKelas($kelasId, $semester, $tahunAjaran);
         $title = 'Buku_Leger_Nilai_' . Str::slug($legerData['kelas']->nama_kelas) . '_' . Str::slug($semester) . '_' . Str::slug($tahunAjaran);
@@ -329,7 +321,15 @@ class NilaiController extends Controller
 
         $validated = $this->withCalculatedGrades($validated);
 
-        Nilai::create($validated);
+        Nilai::updateOrCreate(
+            [
+                'siswa_id' => $validated['siswa_id'],
+                'mapel_id' => $validated['mapel_id'],
+                'semester' => $validated['semester'],
+                'tahun_ajaran' => $validated['tahun_ajaran'],
+            ],
+            $validated
+        );
 
         return redirect()->route('nilai.index')->with('success', 'Nilai berhasil ditambahkan.');
     }

@@ -22,14 +22,21 @@
     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
 
         {{-- Target: Per Siswa --}}
+        @php
+            $tagihanSiswaOptions = $siswaList->map(fn($s) => [
+                'id' => $s->id,
+                'label' => $s->nama_lengkap,
+                'sublabel' => 'NIS: ' . $s->nis . ' • ' . ($s->kelas->nama_lengkap ?? '-'),
+                'kelas_id' => $s->kelas_id,
+            ])->values()->all();
+        @endphp
         <div x-show="mode === 'siswa'" class="sm:col-span-2">
-            <x-form.select label="Siswa" name="siswa_id" :selected="old('siswa_id', $tagihan->siswa_id ?? '')" x-bind:disabled="mode === 'massal'">
-                @foreach ($siswaList as $s)
-                    <option value="{{ $s->id }}" @selected(old('siswa_id', $tagihan->siswa_id ?? '') == $s->id)>
-                        {{ $s->nama_lengkap }} — {{ $s->kelas->nama_lengkap ?? '-' }}
-                    </option>
-                @endforeach
-            </x-form.select>
+            <x-form.searchable-select
+                label="Siswa"
+                name="siswa_id"
+                :options="$tagihanSiswaOptions"
+                :selected="old('siswa_id', $tagihan->siswa_id ?? '')"
+                placeholder="Ketik nama atau NIS untuk mencari siswa..." />
         </div>
 
         {{-- Target: Massal per Kelas --}}

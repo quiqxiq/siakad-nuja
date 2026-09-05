@@ -24,15 +24,7 @@ class JadwalPelajaranController extends Controller
         $tab = request('tab', 'saya'); // 'saya', 'perwalian', 'semua'
 
         $jadwal = JadwalPelajaran::with(['kelas', 'mapel', 'guru'])
-            ->when($isGuru, function ($query) use ($guru, $tab): void {
-                if ($tab === 'perwalian') {
-                    $waliKelasIds = $guru?->waliKelasIds() ?? [];
-                    $query->whereIn('kelas_id', $waliKelasIds ?: [0]);
-                } else {
-                    // Default 'saya' (mengajar)
-                    $query->where('guru_id', $guru?->id ?? 0);
-                }
-            })
+            ->when($isGuru, fn ($query) => $query->where('guru_id', $guruId ?? 0))
             ->when(! $isGuru && request('guru_id'), fn ($query, $id) => $query->where('guru_id', $id))
             ->when(request('search'), function ($query, $search): void {
                 $query->where(function ($q) use ($search): void {
@@ -50,8 +42,8 @@ class JadwalPelajaranController extends Controller
             ->withQueryString();
 
         if ($isGuru) {
-            $accessibleKelasIds = $guru?->accessibleKelasIds() ?? [];
-            $kelasList = Kelas::whereIn('id', $accessibleKelasIds ?: [0])->orderBy('nama_kelas')->get();
+            $teachingKelasIds = $guru?->teachingKelasIds() ?? [];
+            $kelasList = Kelas::whereIn('id', $teachingKelasIds ?: [0])->orderBy('nama_kelas')->get();
             $guruList = collect();
         } else {
             $kelasList = Kelas::orderBy('nama_kelas')->get();

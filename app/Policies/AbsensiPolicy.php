@@ -48,8 +48,7 @@ class AbsensiPolicy
     }
 
     /**
-     * Guru boleh menyentuh absensi jika ia pengampu jadwal tersebut,
-     * atau wali kelas dari kelas pada jadwal itu.
+     * Guru hanya boleh menyentuh absensi jika ia pengampu jadwal tersebut.
      */
     public function mengampuJadwal(User $user, int $jadwalId): bool
     {
@@ -65,12 +64,6 @@ class AbsensiPolicy
             return false;
         }
 
-        if ($jadwal->guru_id === $guru->id) {
-            return true;
-        }
-
-        return $guru->kelasWali()
-            ->where('id', $jadwal->kelas_id)
-            ->exists();
+        return $jadwal->guru_id === $guru->id;
     }
 }

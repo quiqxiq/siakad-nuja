@@ -33,31 +33,45 @@
         @endforeach
     </x-form.select>
 
+    @php
+        $siswaOptions = $siswa->map(fn($s) => [
+            'id' => $s->id,
+            'label' => $s->nama_lengkap,
+            'sublabel' => 'NIS: ' . $s->nis . ' • ' . ($s->kelas->nama_lengkap ?? 'Tanpa Kelas'),
+            'kelas_id' => $s->kelas_id,
+        ])->values()->all();
+    @endphp
+
     <div class="sm:col-span-2">
-        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Siswa <span class="text-rose-500">*</span></label>
-        <select name="siswa_id" x-model="selectedSiswa" required
-            class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-brand-500 focus:ring-brand-500">
-            <option value="">-- Pilih Siswa --</option>
-            @foreach ($siswa as $s)
-                <option value="{{ $s->id }}"
-                    x-show="!selectedKelas || selectedKelas == '{{ $s->kelas_id }}'"
-                    @selected(old('siswa_id', $nilai->siswa_id ?? '') == $s->id)>
-                    {{ $s->nama_lengkap }} (NIS: {{ $s->nis }}) — {{ $s->kelas->nama_lengkap ?? 'Tanpa Kelas' }}
-                </option>
-            @endforeach
-        </select>
-        @error('siswa_id')
-            <p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
-        @enderror
+        <x-form.searchable-select
+            label="Siswa"
+            name="siswa_id"
+            :options="$siswaOptions"
+            :selected="old('siswa_id', $nilai->siswa_id ?? '')"
+            placeholder="Ketik nama atau NIS untuk mencari siswa..."
+            :watchKelas="true"
+            required />
     </div>
 
-    <x-form.select label="Semester" name="semester" :selected="old('semester', $nilai->semester ?? '')" required>
+    @php
+        $defaultSemester = old('semester', $nilai->semester ?? App\Models\Konfigurasi::semesterAktif());
+        $defaultTahunAjaran = old('tahun_ajaran', $nilai->tahun_ajaran ?? App\Models\Konfigurasi::tahunAjaranAktif());
+        $daftarTA = App\Models\Konfigurasi::daftarTahunAjaran();
+    @endphp
+
+    <x-form.select label="Semester" name="semester" :selected="$defaultSemester" required :placeholder="false">
         @foreach (['Ganjil', 'Genap'] as $sem)
-            <option value="{{ $sem }}" @selected(old('semester', $nilai->semester ?? '') === $sem)>{{ $sem }}</option>
+            <option value="{{ $sem }}" @selected($defaultSemester === $sem)>{{ $sem }}</option>
         @endforeach
     </x-form.select>
 
-    <x-form.input label="Tahun Ajaran" name="tahun_ajaran" :value="$nilai->tahun_ajaran ?? ''" placeholder="2024/2025" required />
+    <x-form.select label="Tahun Ajaran" name="tahun_ajaran" :selected="$defaultTahunAjaran" required :placeholder="false" hint="Otomatis disesuaikan dengan tahun ajaran aktif">
+        @foreach ($daftarTA as $ta)
+            <option value="{{ $ta }}" @selected($defaultTahunAjaran === $ta)>
+                {{ $ta }} {{ $ta === App\Models\Konfigurasi::tahunAjaranAktif() ? '(Aktif)' : '' }}
+            </option>
+        @endforeach
+    </x-form.select>
 
     <div class="sm:col-span-2">
         <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">

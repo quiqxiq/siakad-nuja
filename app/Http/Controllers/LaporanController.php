@@ -23,21 +23,9 @@ class LaporanController extends Controller
      */
     public function index(Request $request): View
     {
-        $user = $request->user();
-
-        if ($user->isGuru()) {
-            $guruUser = $user->guru;
-            $kelasIds = $guruUser?->jadwal()->pluck('kelas_id')->unique()->toArray() ?? [];
-
-            $kelas = Kelas::whereIn('id', $kelasIds)->orderBy('nama_kelas')->get();
-            $mapelIds = $guruUser?->jadwal()->pluck('mapel_id')->unique()->toArray() ?? [];
-            $mapel = MataPelajaran::whereIn('id', $mapelIds)->orderBy('nama_mapel')->get();
-            $guru  = Guru::where('id', $guruUser?->id)->get();
-        } else {
-            $kelas = Kelas::orderBy('nama_kelas')->get();
-            $mapel = MataPelajaran::orderBy('nama_mapel')->get();
-            $guru  = Guru::orderBy('nama_lengkap')->get();
-        }
+        $kelas = Kelas::orderBy('nama_kelas')->get();
+        $mapel = MataPelajaran::orderBy('nama_mapel')->get();
+        $guru  = Guru::orderBy('nama_lengkap')->get();
 
         return view('laporan.index', compact('kelas', 'mapel', 'guru'));
     }

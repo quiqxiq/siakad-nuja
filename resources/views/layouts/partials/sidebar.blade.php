@@ -1,6 +1,7 @@
 @php
     $user = auth()->user();
     $isAdmin = $user?->isAdmin() ?? false;
+    $isWaliKelas = $user?->isWaliKelas() ?? false;
 
     // Definisi menu navigasi berdasarkan peran
     $navSections = [
@@ -13,19 +14,26 @@
         [
             'label' => 'Akademik',
             'items' => [
-                ['route' => 'nilai.index', 'match' => 'nilai.*', 'icon' => 'nilai', 'label' => 'Nilai', 'show' => true],
+                ['route' => 'nilai.index', 'match' => 'nilai.index*', 'icon' => 'nilai', 'label' => 'Nilai', 'show' => true],
                 ['route' => 'absensi.index', 'match' => 'absensi.*', 'icon' => 'absensi', 'label' => 'Absensi', 'show' => true],
                 ['route' => 'jadwal.index', 'match' => 'jadwal.*', 'icon' => 'jadwal', 'label' => 'Jadwal', 'show' => true],
-                ['route' => 'laporan.index', 'match' => 'laporan.*', 'icon' => 'download', 'label' => 'Laporan Akademik', 'show' => true],
+                ['route' => 'nilai.leger', 'match' => 'nilai.leger*', 'icon' => 'document', 'label' => 'Buku Leger & Peringkat', 'show' => $isAdmin],
+                ['route' => 'laporan.index', 'match' => 'laporan.*', 'icon' => 'download', 'label' => 'Laporan Akademik', 'show' => $isAdmin],
+            ],
+        ],
+        [
+            'label' => 'Perwalian',
+            'items' => [
+                ['route' => 'perwalian.index', 'match' => 'perwalian.*', 'icon' => 'kelas', 'label' => 'Kelas Perwalian', 'show' => $isWaliKelas || $isAdmin],
             ],
         ],
         [
             'label' => 'Data Master',
             'items' => [
-                ['route' => 'siswa.index', 'match' => 'siswa.*', 'icon' => 'siswa', 'label' => 'Siswa', 'show' => true],
+                ['route' => 'siswa.index', 'match' => 'siswa.*', 'icon' => 'siswa', 'label' => 'Siswa', 'show' => $isAdmin],
                 ['route' => 'guru.index', 'match' => 'guru.*', 'icon' => 'guru', 'label' => 'Guru', 'show' => $isAdmin],
-                ['route' => 'kelas.index', 'match' => 'kelas.*', 'icon' => 'kelas', 'label' => 'Kelas', 'show' => true],
-                ['route' => 'mata-pelajaran.index', 'match' => 'mata-pelajaran.*', 'icon' => 'mapel', 'label' => 'Mata Pelajaran', 'show' => true],
+                ['route' => 'kelas.index', 'match' => 'kelas.*', 'icon' => 'kelas', 'label' => 'Kelas', 'show' => $isAdmin],
+                ['route' => 'mata-pelajaran.index', 'match' => 'mata-pelajaran.*', 'icon' => 'mapel', 'label' => 'Mata Pelajaran', 'show' => $isAdmin],
                 ['route' => 'orang-tua.index', 'match' => 'orang-tua.*', 'icon' => 'orangtua', 'label' => 'Orang Tua', 'show' => $isAdmin],
             ],
         ],

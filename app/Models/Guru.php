@@ -89,6 +89,11 @@ class Guru extends Model
         return $this->kelasWali()->where('id', $kelasId)->exists();
     }
 
+    public function isWaliKelasOf(int $kelasId): bool
+    {
+        return $this->isWaliKelasFor($kelasId);
+    }
+
     /**
      * Cek apakah guru mengajar mapel tertentu di kelas tertentu.
      */

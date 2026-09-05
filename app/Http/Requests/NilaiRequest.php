@@ -19,8 +19,26 @@ class NilaiRequest extends FormRequest
      */
     public function rules(): array
     {
+        $nilai = $this->route('nilai');
+        $nilaiId = $nilai instanceof \App\Models\Nilai ? $nilai->id : $nilai;
+
+        $uniqueRule = Rule::unique('nilai', 'siswa_id')
+            ->where(function ($query) {
+                return $query->where('mapel_id', $this->input('mapel_id'))
+                    ->where('semester', $this->input('semester'))
+                    ->where('tahun_ajaran', $this->input('tahun_ajaran'));
+            });
+
+        if ($nilaiId) {
+            $uniqueRule->ignore($nilaiId);
+        }
+
         return [
-            'siswa_id' => ['required', 'exists:siswa,id'],
+            'siswa_id' => [
+                'required',
+                'exists:siswa,id',
+                $uniqueRule,
+            ],
             'mapel_id' => ['required', 'exists:mata_pelajaran,id'],
             'kelas_id' => ['required', 'exists:kelas,id'],
             'semester' => ['required', Rule::in(['Ganjil', 'Genap'])],
@@ -47,6 +65,7 @@ class NilaiRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'siswa_id.unique' => 'Nilai untuk siswa ini pada mata pelajaran, semester, dan tahun ajaran tersebut sudah pernah diinput. Silakan gunakan menu Edit untuk memperbarui nilai.',
             'tahun_ajaran.regex' => 'Format tahun ajaran harus YYYY/YYYY (contoh: 2026/2027).',
         ];
     }

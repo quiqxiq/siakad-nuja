@@ -152,4 +152,24 @@ class Nilai extends Model
     {
         return $this->nilai_harian !== null && $this->nilai_uts !== null && $this->nilai_uas !== null;
     }
+
+    /**
+     * Status tahap pengisian nilai (Harian Saja, Tengah Semester, Lengkap).
+     */
+    public function getStatusTahapAttribute(): string
+    {
+        if ($this->nilai_harian !== null && $this->nilai_uts !== null && $this->nilai_uas !== null) {
+            return 'Lengkap';
+        }
+
+        if ($this->nilai_harian !== null && $this->nilai_uts !== null) {
+            return 'Tengah Semester';
+        }
+
+        if ($this->nilai_harian !== null) {
+            return 'Harian Saja';
+        }
+
+        return 'Belum Dinilai';
+    }
 }

@@ -197,7 +197,7 @@ class RankingService
             return ($totalA < $totalB) ? 1 : -1;
         })->values();
 
-        // Assign Peringkat Kelas
+        // Assign Peringkat Kelas berdasarkan total_akhir
         $prevTotal = null;
         $prevRank = null;
 

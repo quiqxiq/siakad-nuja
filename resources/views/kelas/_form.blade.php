@@ -9,7 +9,18 @@
         @endforeach
     </x-form.select>
 
-    <x-form.input label="Tahun Ajaran" name="tahun_ajaran" :value="$kelas->tahun_ajaran ?? ''" required hint="Mis. 2024/2025" />
+    @php
+        $defaultTahunAjaran = old('tahun_ajaran', $kelas->tahun_ajaran ?? App\Models\Konfigurasi::tahunAjaranAktif());
+        $daftarTA = App\Models\Konfigurasi::daftarTahunAjaran();
+    @endphp
+
+    <x-form.select label="Tahun Ajaran" name="tahun_ajaran" :selected="$defaultTahunAjaran" required :placeholder="false" hint="Otomatis terisi tahun ajaran aktif">
+        @foreach ($daftarTA as $ta)
+            <option value="{{ $ta }}" @selected($defaultTahunAjaran === $ta)>
+                {{ $ta }} {{ $ta === App\Models\Konfigurasi::tahunAjaranAktif() ? '(Aktif)' : '' }}
+            </option>
+        @endforeach
+    </x-form.select>
 
     <x-form.select label="Wali Kelas" name="wali_kelas_id" :selected="old('wali_kelas_id', $kelas->wali_kelas_id ?? '')">
         @foreach ($guru as $g)

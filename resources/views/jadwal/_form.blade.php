@@ -33,8 +33,19 @@
     <x-form.input label="Jam Selesai" name="jam_selesai" type="time"
         :value="isset($jadwal) ? \Illuminate\Support\Str::substr($jadwal->jam_selesai, 0, 5) : ''" required />
 
+    @php
+        $defaultTahunAjaran = old('tahun_ajaran', $jadwal->tahun_ajaran ?? App\Models\Konfigurasi::tahunAjaranAktif());
+        $daftarTA = App\Models\Konfigurasi::daftarTahunAjaran();
+    @endphp
+
     <div class="sm:col-span-2">
-        <x-form.input label="Tahun Ajaran" name="tahun_ajaran" :value="$jadwal->tahun_ajaran ?? ''" placeholder="2025/2026" required />
+        <x-form.select label="Tahun Ajaran" name="tahun_ajaran" :selected="$defaultTahunAjaran" required :placeholder="false" hint="Otomatis terisi tahun ajaran aktif">
+            @foreach ($daftarTA as $ta)
+                <option value="{{ $ta }}" @selected($defaultTahunAjaran === $ta)>
+                    {{ $ta }} {{ $ta === App\Models\Konfigurasi::tahunAjaranAktif() ? '(Aktif)' : '' }}
+                </option>
+            @endforeach
+        </x-form.select>
     </div>
 </div>
 

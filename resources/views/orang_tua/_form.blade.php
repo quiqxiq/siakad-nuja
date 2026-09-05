@@ -1,9 +1,22 @@
+@php
+    $siswaOptions = $siswa->map(fn($s) => [
+        'id' => $s->id,
+        'label' => $s->nama_lengkap,
+        'sublabel' => 'NIS: ' . $s->nis . ' • ' . ($s->kelas->nama_lengkap ?? '-'),
+        'kelas_id' => $s->kelas_id,
+    ])->values()->all();
+@endphp
+
 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-    <x-form.select label="Siswa" name="siswa_id" :selected="old('siswa_id', $orangTua->siswa_id ?? '')" required>
-        @foreach ($siswa as $s)
-            <option value="{{ $s->id }}" @selected(old('siswa_id', $orangTua->siswa_id ?? '') == $s->id)>{{ $s->nama_lengkap }} — {{ $s->kelas->nama_lengkap ?? '-' }}</option>
-        @endforeach
-    </x-form.select>
+    <div class="sm:col-span-2">
+        <x-form.searchable-select
+            label="Siswa"
+            name="siswa_id"
+            :options="$siswaOptions"
+            :selected="old('siswa_id', $orangTua->siswa_id ?? '')"
+            placeholder="Ketik nama atau NIS untuk mencari siswa..."
+            required />
+    </div>
 
     <x-form.input label="Nama" name="nama" :value="$orangTua->nama ?? ''" required />
 

@@ -262,10 +262,6 @@ class AbsensiController extends Controller
             return [];
         }
 
-        $diampu = $guru->jadwal()->pluck('id')->all();
-        $kelasWaliIds = $guru->kelasWali()->pluck('id')->all();
-        $waliJadwal = JadwalPelajaran::whereIn('kelas_id', $kelasWaliIds)->pluck('id')->all();
-
-        return array_values(array_unique([...$diampu, ...$waliJadwal]));
+        return $guru->jadwal()->pluck('id')->values()->all();
     }
 }

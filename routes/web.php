@@ -13,6 +13,7 @@ use App\Http\Controllers\MataPelajaranController;
 use App\Http\Controllers\NilaiController;
 use App\Http\Controllers\OrangTuaController;
 use App\Http\Controllers\PengumumanController;
+use App\Http\Controllers\PerwalianController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SiswaController;
 use App\Http\Controllers\TagihanController;
@@ -44,11 +45,13 @@ Route::middleware('auth')->group(function (): void {
     |--------------------------------------------------------------------------
     */
     Route::middleware('role:admin,guru')->group(function (): void {
-        // Entri Nilai Massal (Matrix Form) & Buku Leger Kelas (Peringkat Otomatis)
+        // Buku Leger Nilai & Peringkat Kelas (Khusus Admin)
+        Route::get('nilai/leger', [NilaiController::class, 'leger'])->name('nilai.leger')->middleware('role:admin');
+        Route::get('nilai/leger/export', [NilaiController::class, 'exportLeger'])->name('nilai.leger.export')->middleware('role:admin');
+
+        // Entri Nilai Massal (Matrix Form) untuk Guru Pengampu & Admin
         Route::get('nilai/matrix', [NilaiController::class, 'matrix'])->name('nilai.matrix');
         Route::post('nilai/matrix', [NilaiController::class, 'storeMatrix'])->name('nilai.matrix.store');
-        Route::get('nilai/leger', [NilaiController::class, 'leger'])->name('nilai.leger');
-        Route::get('nilai/leger/export', [NilaiController::class, 'exportLeger'])->name('nilai.leger.export');
 
         Route::resource('nilai', NilaiController::class);
 
@@ -60,28 +63,27 @@ Route::middleware('auth')->group(function (): void {
         Route::get('absensi/{absensi}', [AbsensiController::class, 'show'])->name('absensi.show');
         Route::delete('absensi/{absensi}', [AbsensiController::class, 'destroy'])->name('absensi.destroy');
 
-        // Laporan Akademik (C4, C5, C6)
-        Route::get('laporan', [LaporanController::class, 'index'])->name('laporan.index');
-        Route::get('laporan/kehadiran', [LaporanController::class, 'kehadiran'])->name('laporan.kehadiran');
-        Route::get('laporan/nilai', [LaporanController::class, 'nilai'])->name('laporan.nilai');
-        Route::get('laporan/jadwal', [LaporanController::class, 'jadwal'])->name('laporan.jadwal');
-
         // Kirim Teguran WA per Siswa ke Wali
         Route::post('siswa/{siswa}/teguran', [SiswaController::class, 'kirimTeguran'])->name('siswa.teguran');
     });
 
     /*
     |--------------------------------------------------------------------------
-    | Manajemen data master & akun (admin saja)
+    | Manajemen data master, laporan akademik & akun (admin saja)
     |--------------------------------------------------------------------------
     | Didaftarkan SEBELUM rute read-only agar `.../create` & `.../{id}/edit`
     | tidak tertangkap oleh rute show (`.../{id}`) yang berpola sama.
     */
     Route::middleware('role:admin')->group(function (): void {
-        Route::resource('siswa', SiswaController::class)->except(['index', 'show']);
-        Route::resource('kelas', KelasController::class)->except(['index', 'show']);
+        // Laporan Akademik (Khusus Admin)
+        Route::get('laporan', [LaporanController::class, 'index'])->name('laporan.index');
+        Route::get('laporan/kehadiran', [LaporanController::class, 'kehadiran'])->name('laporan.kehadiran');
+        Route::get('laporan/nilai', [LaporanController::class, 'nilai'])->name('laporan.nilai');
+        Route::get('laporan/jadwal', [LaporanController::class, 'jadwal'])->name('laporan.jadwal');
+
+        Route::resource('siswa', SiswaController::class);
+        Route::resource('kelas', KelasController::class);
         Route::resource('mata-pelajaran', MataPelajaranController::class)
-            ->except(['index', 'show'])
             ->parameters(['mata-pelajaran' => 'mataPelajaran']);
         Route::resource('jadwal', JadwalPelajaranController::class)->except(['index', 'show']);
         Route::resource('pengumuman', PengumumanController::class)->except(['index', 'show']);
@@ -127,16 +129,15 @@ Route::middleware('auth')->group(function (): void {
 
     /*
     |--------------------------------------------------------------------------
-    | Data master read-only untuk guru & admin (index/show)
+    | Data operasional guru: Jadwal, Pengumuman & Ruang Perwalian (Wali Kelas)
     |--------------------------------------------------------------------------
     */
     Route::middleware('role:admin,guru')->group(function (): void {
-        Route::resource('siswa', SiswaController::class)->only(['index', 'show']);
-        Route::resource('kelas', KelasController::class)->only(['index', 'show']);
-        Route::resource('mata-pelajaran', MataPelajaranController::class)
-            ->only(['index', 'show'])
-            ->parameters(['mata-pelajaran' => 'mataPelajaran']);
         Route::resource('jadwal', JadwalPelajaranController::class)->only(['index', 'show']);
         Route::resource('pengumuman', PengumumanController::class)->only(['index', 'show']);
+
+        // Ruang Perwalian (Wali Kelas & Admin)
+        Route::get('perwalian', [PerwalianController::class, 'index'])->name('perwalian.index');
+        Route::get('perwalian/{kelas}', [PerwalianController::class, 'show'])->name('perwalian.show');
     });
 });

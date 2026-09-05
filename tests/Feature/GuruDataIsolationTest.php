@@ -18,44 +18,49 @@ class GuruDataIsolationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_guru_can_only_see_students_in_accessible_classes(): void
+    public function test_guru_cannot_access_data_master_directly(): void
     {
-        // 2 Kelas: Kelas A & Kelas B
-        $kelasA = Kelas::create(['nama_kelas' => '7A', 'tingkat' => '7', 'jenjang' => 'MTs', 'tahun_ajaran' => '2024/2025']);
+        $userGuru = User::factory()->create(['role' => 'guru']);
+        $userAdmin = User::factory()->create(['role' => 'admin']);
+
+        // Guru akses master siswa & kelas -> 403 Forbidden
+        $this->actingAs($userGuru)->get(route('siswa.index'))->assertForbidden();
+        $this->actingAs($userGuru)->get(route('kelas.index'))->assertForbidden();
+
+        // Admin akses master siswa & kelas -> 200 OK
+        $this->actingAs($userAdmin)->get(route('siswa.index'))->assertOk();
+        $this->actingAs($userAdmin)->get(route('kelas.index'))->assertOk();
+    }
+
+    public function test_wali_kelas_can_only_access_assigned_homeroom_space(): void
+    {
+        $userWaliA = User::factory()->create(['role' => 'guru']);
+        $guruWaliA = Guru::create(['user_id' => $userWaliA->id, 'nip' => '199001012020', 'nama_lengkap' => 'Ustadz Wali A']);
+
+        $userGuruBiasa = User::factory()->create(['role' => 'guru']);
+        $guruBiasa = Guru::create(['user_id' => $userGuruBiasa->id, 'nip' => '199001012021', 'nama_lengkap' => 'Ustadz Biasa']);
+
+        $kelasA = Kelas::create(['nama_kelas' => '7A', 'tingkat' => '7', 'jenjang' => 'MTs', 'tahun_ajaran' => '2024/2025', 'wali_kelas_id' => $guruWaliA->id]);
         $kelasB = Kelas::create(['nama_kelas' => '7B', 'tingkat' => '7', 'jenjang' => 'MTs', 'tahun_ajaran' => '2024/2025']);
 
         $siswaA = Siswa::create(['nis' => '1001', 'nama_lengkap' => 'Ahmad Santoso', 'kelas_id' => $kelasA->id, 'tahun_masuk' => 2024, 'jenis_kelamin' => 'Laki-laki']);
         $siswaB = Siswa::create(['nis' => '1002', 'nama_lengkap' => 'Budi Pratama', 'kelas_id' => $kelasB->id, 'tahun_masuk' => 2024, 'jenis_kelamin' => 'Laki-laki']);
 
-        // Guru 1 hanya mengajar di Kelas A
-        $userGuru1 = User::factory()->create(['role' => 'guru']);
-        $guru1 = Guru::create(['user_id' => $userGuru1->id, 'nip' => '199001012020', 'nama_lengkap' => 'Ustadz Zaid']);
-        $mapel = MataPelajaran::factory()->create();
+        // Wali A buka kelas perwaliannya sendiri (Kelas A) -> 200 OK & tampil siswa binaannya
+        $responseA = $this->actingAs($userWaliA)->get(route('perwalian.show', $kelasA));
+        $responseA->assertOk();
+        $responseA->assertSee('Ahmad Santoso');
+        $responseA->assertDontSee('Budi Pratama');
 
-        JadwalPelajaran::create([
-            'kelas_id' => $kelasA->id,
-            'mapel_id' => $mapel->id,
-            'guru_id' => $guru1->id,
-            'hari' => 'Senin',
-            'jam_ke' => 1,
-            'jam_mulai' => '07:00',
-            'jam_selesai' => '08:40',
-            'tahun_ajaran' => '2024/2025',
-        ]);
+        // Wali A buka kelas lain yang bukan perwaliannya (Kelas B) -> 403 Forbidden
+        $this->actingAs($userWaliA)->get(route('perwalian.show', $kelasB))->assertForbidden();
 
-        // Guru 1 akses daftar siswa: hanya boleh melihat Siswa A, tidak boleh melihat Siswa B
-        $response = $this->actingAs($userGuru1)->get(route('siswa.index'));
-        $response->assertOk();
-        $response->assertSee('Ahmad Santoso');
-        $response->assertDontSee('Budi Pratama');
+        // Guru biasa (bukan wali kelas manapun) buka perwalian index -> 403 Forbidden
+        $this->actingAs($userGuruBiasa)->get(route('perwalian.index'))->assertForbidden();
 
-        // Guru 1 akses show Siswa B -> 403 Forbidden
-        $responseShowB = $this->actingAs($userGuru1)->get(route('siswa.show', $siswaB));
-        $responseShowB->assertForbidden();
-
-        // Guru 1 akses show Siswa A -> 200 OK
-        $responseShowA = $this->actingAs($userGuru1)->get(route('siswa.show', $siswaA));
-        $responseShowA->assertOk();
+        // Wali A buka perwalian index -> redirected to their single homeroom class show
+        $responseIndex = $this->actingAs($userWaliA)->get(route('perwalian.index'));
+        $responseIndex->assertRedirect(route('perwalian.show', $kelasA));
     }
 
     public function test_guru_cannot_edit_grades_for_subjects_they_do_not_teach(): void

@@ -35,7 +35,11 @@
 </div>
 
 @if ($siswa->isNotEmpty())
-    <form method="POST" action="{{ route('absensi.store') }}" x-data="{ setAll(s) { document.querySelectorAll('input[data-status=\'' + s + '\']').forEach(el => el.checked = true) } }">
+    <form method="POST" action="{{ route('absensi.store') }}"
+        x-data="{
+            searchFilter: '',
+            setAll(s) { document.querySelectorAll('input[data-status=\'' + s + '\']').forEach(el => el.checked = true) }
+        }">
         @csrf
         <input type="hidden" name="jadwal_id" value="{{ $jadwal->id }}">
         <input type="hidden" name="tanggal" value="{{ $tanggal }}">
@@ -54,10 +58,23 @@
                 </div>
             </x-slot:header>
 
+            <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between gap-3">
+                <div class="relative w-full max-w-sm">
+                    <x-icon name="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input type="text"
+                        x-model="searchFilter"
+                        placeholder="Cari nama atau NIS siswa di roster..."
+                        class="block w-full rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white pl-9 pr-8 py-2 text-xs shadow-sm focus:border-brand-500 focus:ring-brand-500">
+                    <button type="button" x-show="searchFilter" @click="searchFilter = ''" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                        <x-icon name="close" class="h-3.5 w-3.5" />
+                    </button>
+                </div>
+            </div>
+
             <ul class="divide-y divide-slate-100 dark:divide-slate-700/60">
                 @foreach ($siswa as $s)
                     @php $current = old("status.$s->id", $existing[$s->id]->status ?? 'Hadir'); @endphp
-                    <li class="px-4 py-4 sm:px-6">
+                    <li class="px-4 py-4 sm:px-6" x-show="!searchFilter || ('{{ strtolower(addslashes($s->nama_lengkap . ' ' . $s->nis)) }}').includes(searchFilter.toLowerCase().trim())">
                         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div class="flex items-center gap-3 min-w-0">
                                 <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300">

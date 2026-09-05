@@ -47,7 +47,11 @@
 
         <div>
             <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Tahun Ajaran</label>
-            <input type="text" name="tahun_ajaran" value="{{ $tahunAjaran }}" placeholder="2024/2025" onchange="this.form.submit()" class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-brand-500 focus:ring-brand-500">
+            <select name="tahun_ajaran" onchange="this.form.submit()" class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-brand-500 focus:ring-brand-500">
+                @foreach (App\Models\Konfigurasi::daftarTahunAjaran() as $ta)
+                    <option value="{{ $ta }}" @selected($tahunAjaran === $ta)>{{ $ta }} {{ $ta === App\Models\Konfigurasi::tahunAjaranAktif() ? '(Aktif)' : '' }}</option>
+                @endforeach
+            </select>
         </div>
 
         <div>

@@ -6,9 +6,11 @@
 <x-page-header title="Entri Nilai Massal" subtitle="Input nilai Harian, UTS, dan UAS sekaligus untuk seluruh siswa di satu rombel kelas.">
     <x-slot:actions>
         <div class="flex items-center gap-2">
-            <x-button :href="route('nilai.leger', ['kelas_id' => $selectedKelasId, 'semester' => $semester, 'tahun_ajaran' => $tahunAjaran])" variant="secondary">
-                <x-icon name="document" class="h-4 w-4" /> Buku Leger &amp; Peringkat
-            </x-button>
+            @if (auth()->user()?->isAdmin())
+                <x-button :href="route('nilai.leger', ['kelas_id' => $selectedKelasId, 'semester' => $semester, 'tahun_ajaran' => $tahunAjaran])" variant="secondary">
+                    <x-icon name="document" class="h-4 w-4" /> Buku Leger &amp; Peringkat
+                </x-button>
+            @endif
             <x-button :href="route('nilai.index')" variant="ghost">
                 <x-icon name="arrow-left" class="h-4 w-4" /> Kembali
             </x-button>
@@ -51,7 +53,11 @@
 
         <div>
             <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Tahun Ajaran</label>
-            <input type="text" name="tahun_ajaran" value="{{ $tahunAjaran }}" placeholder="2024/2025" onchange="this.form.submit()" class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-brand-500 focus:ring-brand-500">
+            <select name="tahun_ajaran" onchange="this.form.submit()" class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm focus:border-brand-500 focus:ring-brand-500">
+                @foreach (App\Models\Konfigurasi::daftarTahunAjaran() as $ta)
+                    <option value="{{ $ta }}" @selected($tahunAjaran === $ta)>{{ $ta }} {{ $ta === App\Models\Konfigurasi::tahunAjaranAktif() ? '(Aktif)' : '' }}</option>
+                @endforeach
+            </select>
         </div>
 
         <div>
@@ -70,6 +76,7 @@
     <form method="POST" action="{{ route('nilai.matrix.store') }}"
         x-data="{
             kkm: {{ $kkmVal }},
+            siswaSearch: '',
             hitungAkhir(harian, uts, uas) {
                 let h = (harian !== '' && harian !== null && !isNaN(harian)) ? parseFloat(harian) : null;
                 let u = (uts !== '' && uts !== null && !isNaN(uts)) ? parseFloat(uts) : null;
@@ -125,7 +132,28 @@
                 </div>
             </div>
 
+            <div class="m-4 p-3 bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 rounded-xl text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                <x-icon name="info" class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                <span><strong>Pengisian Fleksibel &amp; Bertahap:</strong> Anda dapat menginput Nilai Harian/Tugas saja terlebih dahulu di awal semester. Nilai UTS dan UAS dapat dikosongkan dan diisi bertahap saat ujian berlangsung. Nilai akhir akan dihitung secara adaptif.</span>
+            </div>
+
             @if ($matrixData->count())
+                <div class="px-4 pb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div class="relative w-full max-w-sm">
+                        <x-icon name="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <input type="text"
+                            x-model="siswaSearch"
+                            placeholder="Cari siswa di tabel (nama atau NIS)..."
+                            class="block w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white pl-9 pr-8 py-2 text-xs shadow-sm focus:border-brand-500 focus:ring-brand-500">
+                        <button type="button" x-show="siswaSearch" @click="siswaSearch = ''" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                            <x-icon name="close" class="h-3.5 w-3.5" />
+                        </button>
+                    </div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400" x-show="siswaSearch">
+                        Menyaring baris siswa yang cocok...
+                    </div>
+                </div>
+
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-700 dark:text-slate-300">
                         <thead class="bg-slate-100 dark:bg-slate-800 text-xs uppercase font-semibold text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
@@ -133,9 +161,9 @@
                                 <th class="px-4 py-3 text-center w-12">No</th>
                                 <th class="px-4 py-3 w-28">NIS</th>
                                 <th class="px-4 py-3 min-w-[200px]">Nama Siswa</th>
-                                <th class="px-4 py-3 w-32 text-center">Nilai Harian (30%)</th>
-                                <th class="px-4 py-3 w-32 text-center">Nilai UTS (30%)</th>
-                                <th class="px-4 py-3 w-32 text-center">Nilai UAS (40%)</th>
+                                <th class="px-4 py-3 w-32 text-center">Nilai Harian</th>
+                                <th class="px-4 py-3 w-32 text-center">UTS (Opsional)</th>
+                                <th class="px-4 py-3 w-32 text-center">UAS (Opsional)</th>
                                 <th class="px-4 py-3 w-28 text-center bg-slate-50 dark:bg-slate-700/40">Nilai Akhir</th>
                                 <th class="px-4 py-3 w-20 text-center bg-slate-50 dark:bg-slate-700/40">Predikat</th>
                                 <th class="px-4 py-3 w-28 text-center">Ketuntasan</th>
@@ -153,6 +181,7 @@
                                     $predikatInit = $row['predikat'] ?? '-';
                                 @endphp
                                 <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors"
+                                    x-show="!siswaSearch || ('{{ strtolower(addslashes($s->nama_lengkap . ' ' . $s->nis)) }}').includes(siswaSearch.toLowerCase().trim())"
                                     x-data="{
                                         harian: '{{ $hInit }}',
                                         uts: '{{ $uInit }}',
