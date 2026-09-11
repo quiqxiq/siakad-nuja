@@ -22,12 +22,18 @@ class Absensi extends Model
         'tanggal',
         'status',
         'keterangan',
+        'latitude',
+        'longitude',
+        'jarak_meter',
     ];
 
     protected function casts(): array
     {
         return [
             'tanggal' => 'date',
+            'latitude' => 'float',
+            'longitude' => 'float',
+            'jarak_meter' => 'integer',
             'created_at' => 'datetime',
         ];
     }

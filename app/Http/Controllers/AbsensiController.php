@@ -10,11 +10,13 @@ use App\Models\JadwalPelajaran;
 use App\Models\Kelas;
 use App\Models\MataPelajaran;
 use App\Models\Siswa;
+use App\Services\GeolocationService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AbsensiController extends Controller
 {
@@ -125,8 +127,9 @@ class AbsensiController extends Controller
 
         $kelasIds = $jadwal->pluck('kelas_id')->unique()->filter()->all();
         $kelasList = Kelas::whereIn('id', $kelasIds ?: [0])->orderBy('nama_kelas')->get();
+        $lokasiConfig = app(GeolocationService::class)->getMadrasahConfig();
 
-        return view('absensi.create', compact('jadwal', 'kelasList'));
+        return view('absensi.create', compact('jadwal', 'kelasList', 'lokasiConfig'));
     }
 
     /**
@@ -155,16 +158,20 @@ class AbsensiController extends Controller
             ->get()
             ->keyBy('siswa_id');
 
+        $lokasiConfig = app(GeolocationService::class)->getMadrasahConfig();
+
         return view('absensi.roster', [
             'jadwal' => $jadwal,
             'tanggal' => $validated['tanggal'],
             'siswa' => $siswa,
             'existing' => $existing,
+            'lokasiConfig' => $lokasiConfig,
         ]);
     }
 
     /**
      * Simpan absensi massal (upsert per siswa + jadwal + tanggal).
+     * Dibatasi hanya dalam radius lokasi madrasah (guru & admin).
      */
     public function store(Request $request): RedirectResponse
     {
@@ -173,15 +180,41 @@ class AbsensiController extends Controller
         $validated = $request->validate([
             'jadwal_id' => ['required', 'exists:jadwal_pelajaran,id'],
             'tanggal' => ['required', 'date'],
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
             'status' => ['required', 'array'],
             'status.*' => [Rule::in(['Hadir', 'Izin', 'Sakit', 'Alpa'])],
             'keterangan' => ['nullable', 'array'],
             'keterangan.*' => ['nullable', 'string', 'max:255'],
+        ], [
+            'latitude.required' => 'Koordinat GPS (latitude) wajib disertakan untuk verifikasi lokasi absensi.',
+            'longitude.required' => 'Koordinat GPS (longitude) wajib disertakan untuk verifikasi lokasi absensi.',
+            'latitude.numeric' => 'Format koordinat latitude tidak valid.',
+            'longitude.numeric' => 'Format koordinat longitude tidak valid.',
+            'latitude.between' => 'Koordinat latitude berada di luar rentang valid bumi.',
+            'longitude.between' => 'Koordinat longitude berada di luar rentang valid bumi.',
         ]);
 
         $this->authorizeJadwal($request, (int) $validated['jadwal_id']);
 
-        DB::transaction(function () use ($validated): void {
+        // Verifikasi geolokasi guru & admin
+        $geoService = app(GeolocationService::class);
+        $locationCheck = $geoService->validateAttendanceLocation(
+            (float) $validated['latitude'],
+            (float) $validated['longitude']
+        );
+
+        if (! $locationCheck['valid']) {
+            throw ValidationException::withMessages([
+                'lokasi' => $locationCheck['message'],
+            ]);
+        }
+
+        DB::transaction(function () use ($validated, $locationCheck): void {
+            $lat = (float) $validated['latitude'];
+            $lon = (float) $validated['longitude'];
+            $jarak = $locationCheck['distance'] !== null ? (int) round($locationCheck['distance']) : null;
+
             foreach ($validated['status'] as $siswaId => $status) {
                 Absensi::updateOrCreate(
                     [
@@ -192,6 +225,9 @@ class AbsensiController extends Controller
                     [
                         'status' => $status,
                         'keterangan' => $validated['keterangan'][$siswaId] ?? null,
+                        'latitude' => $lat,
+                        'longitude' => $lon,
+                        'jarak_meter' => $jarak,
                     ],
                 );
             }
@@ -199,7 +235,7 @@ class AbsensiController extends Controller
 
         return redirect()
             ->route('absensi.index', ['jadwal_id' => $validated['jadwal_id'], 'tanggal' => $validated['tanggal']])
-            ->with('success', 'Absensi berhasil disimpan.');
+            ->with('success', 'Absensi berhasil disimpan di lokasi ' . $locationCheck['target_name'] . '.');
     }
 
     public function show(Absensi $absensi): View

@@ -44,7 +44,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx.cmd concurrently -c \"#93c5fd,#c4b5fd,#fdba74,#86efac,#fde047\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"npm.cmd run dev\" \"php artisan whatsapp:sidecar:start\" \"php artisan whatsapp:web:listen main\" --names=server,queue,vite,sidecar,wa-listen --kill-others-on-fail"
+            "npx.cmd concurrently -c \"#93c5fd,#c4b5fd,#fdba74,#86efac,#fde047\" \"php artisan serve --host=0.0.0.0\" \"php artisan queue:listen --tries=1 --timeout=0\" \"npm.cmd run dev\" \"php artisan whatsapp:sidecar:start\" \"php artisan whatsapp:web:listen main\" --names=server,queue,vite,sidecar,wa-listen --kill-others-on-fail"
         ],
         "test": [
             "@php artisan config:clear --ansi",

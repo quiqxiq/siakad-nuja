@@ -22,7 +22,27 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(\Illuminate\Foundation\Vite::class, function () {
+            return new class extends \Illuminate\Foundation\Vite {
+                protected function hotAsset($asset)
+                {
+                    $url = rtrim(file_get_contents($this->hotFile()));
+
+                    // Ganti host agar sesuai dengan alamat yang sedang diakses (IP LAN atau localhost)
+                    $requestHost = request()->getHost();
+                    if ($requestHost) {
+                        $parsed = parse_url($url);
+                        $port = $parsed['port'] ?? 5173;
+                        $scheme = $parsed['scheme'] ?? 'http';
+                        $url = "{$scheme}://{$requestHost}:{$port}";
+                    } elseif (str_contains($url, '[::]') || str_contains($url, '0.0.0.0')) {
+                        $url = str_replace(['[::]', '0.0.0.0'], 'localhost', $url);
+                    }
+
+                    return $url.'/'.$asset;
+                }
+            };
+        });
     }
 
     /**
