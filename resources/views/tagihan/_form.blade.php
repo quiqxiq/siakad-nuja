@@ -41,12 +41,21 @@
 
         {{-- Target: Massal per Kelas --}}
         <div x-show="mode === 'massal'" class="sm:col-span-2">
-            <x-form.select label="Pilih Kelas (tagihan massal)" name="kelas_id_massal" :selected="old('kelas_id_massal', '')" x-bind:disabled="mode === 'siswa'">
-                <option value="">— Pilih Kelas —</option>
-                @foreach ($kelasList as $k)
-                    <option value="{{ $k->id }}" @selected(old('kelas_id_massal') == $k->id)>{{ $k->nama_lengkap }}</option>
-                @endforeach
-            </x-form.select>
+            @php
+                $kelasMassalOptions = $kelasList->map(fn($k) => [
+                    'id' => $k->id,
+                    'label' => $k->nama_lengkap,
+                    'sublabel' => 'Tahun Ajaran ' . $k->tahun_ajaran,
+                ])->values()->all();
+            @endphp
+            <x-form.searchable-select
+                label="Pilih Kelas (tagihan massal)"
+                name="kelas_id_massal"
+                :options="$kelasMassalOptions"
+                :selected="old('kelas_id_massal', '')"
+                placeholder="— Cari & Pilih Kelas —"
+                searchPlaceholder="Ketik nama kelas atau jenjang..."
+                emptyText="Tidak ada kelas yang cocok dengan pencarian" />
             <p class="mt-2 text-sm text-amber-600 dark:text-amber-400">
                 <x-icon name="warning" class="inline h-4 w-4" />
                 Tagihan akan dibuat untuk <strong>seluruh siswa</strong> dalam kelas yang dipilih.

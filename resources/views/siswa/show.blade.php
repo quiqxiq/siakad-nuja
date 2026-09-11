@@ -57,8 +57,8 @@
                 </div>
 
                 <dl class="mt-6 space-y-3 border-t border-slate-100 dark:border-slate-700 pt-4 text-sm">
-                    <div class="flex justify-between gap-4"><dt class="text-slate-400">Kelas</dt><dd class="text-slate-900 dark:text-white font-medium">{{ $siswa->kelas->nama_kelas ?? '-' }}</dd></div>
-                    <div class="flex justify-between gap-4"><dt class="text-slate-400">Jenis Kelamin</dt><dd class="text-slate-700 dark:text-slate-300">{{ $siswa->jenis_kelamin === 'L' ? 'Laki-laki' : ($siswa->jenis_kelamin === 'P' ? 'Perempuan' : '-') }}</dd></div>
+                    <div class="flex justify-between gap-4"><dt class="text-slate-400">Kelas</dt><dd class="text-slate-900 dark:text-white font-medium">{{ $siswa->kelas->nama_lengkap ?? $siswa->kelas->nama_kelas ?? '-' }}</dd></div>
+                    <div class="flex justify-between gap-4"><dt class="text-slate-400">Jenis Kelamin</dt><dd class="text-slate-700 dark:text-slate-300 font-medium">{{ $siswa->jenis_kelamin_teks }}</dd></div>
                     <div class="flex justify-between gap-4"><dt class="text-slate-400">Tanggal Lahir</dt><dd class="text-slate-700 dark:text-slate-300">{{ optional($siswa->tanggal_lahir)->format('d M Y') ?? '-' }}</dd></div>
                     <div class="flex justify-between gap-4"><dt class="text-slate-400">Tahun Masuk</dt><dd class="text-slate-700 dark:text-slate-300">{{ $siswa->tahun_masuk }}</dd></div>
                     <div class="flex justify-between gap-4"><dt class="text-slate-400">Alamat</dt><dd class="text-right text-slate-700 dark:text-slate-300">{{ $siswa->alamat ?? '-' }}</dd></div>

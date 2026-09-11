@@ -62,6 +62,42 @@ class NilaiRequest extends FormRequest
         ];
     }
 
+    /**
+     * Validasi tambahan agar mata pelajaran dan siswa sesuai dengan kelas.
+     */
+    public function withValidator(\Illuminate\Validation\Validator $validator): void
+    {
+        $validator->after(function ($validator): void {
+            $kelasId = (int) $this->input('kelas_id');
+            $mapelId = (int) $this->input('mapel_id');
+            $siswaId = (int) $this->input('siswa_id');
+
+            if ($kelasId && $mapelId) {
+                $kelas = \App\Models\Kelas::find($kelasId);
+                $mapel = \App\Models\MataPelajaran::find($mapelId);
+
+                if ($kelas && $mapel) {
+                    if ($kelas->jenjang !== $mapel->jenjang) {
+                        $validator->errors()->add('mapel_id', "Mata pelajaran '{$mapel->nama_mapel}' ({$mapel->jenjang}) tidak sesuai dengan jenjang {$kelas->nama_lengkap}.");
+                    } else {
+                        $registeredMapelIds = $kelas->mataPelajaran()->pluck('mata_pelajaran.id')->all();
+                        if (! empty($registeredMapelIds) && ! in_array($mapelId, $registeredMapelIds, true)) {
+                            $validator->errors()->add('mapel_id', "Mata pelajaran '{$mapel->nama_mapel}' tidak terdaftar pada kurikulum {$kelas->nama_lengkap}.");
+                        }
+                    }
+                }
+            }
+
+            if ($kelasId && $siswaId) {
+                $siswa = \App\Models\Siswa::find($siswaId);
+                if ($siswa && (int) $siswa->kelas_id !== $kelasId) {
+                    $kelas = \App\Models\Kelas::find($kelasId);
+                    $validator->errors()->add('siswa_id', "Siswa '{$siswa->nama_lengkap}' bukan merupakan siswa di kelas {$kelas?->nama_lengkap}.");
+                }
+            }
+        });
+    }
+
     public function messages(): array
     {
         return [

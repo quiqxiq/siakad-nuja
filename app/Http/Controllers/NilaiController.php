@@ -424,21 +424,16 @@ class NilaiController extends Controller
             $teachingMapelIds = $guru?->teachingMapelIds() ?? [];
 
             $kelas = Kelas::whereIn('id', $teachingKelasIds ?: [0])->orderBy('nama_kelas')->get();
+            $mapelByKelas = Kelas::getMapelByKelasMapping($teachingMapelIds);
             $mapel = MataPelajaran::whereIn('id', $teachingMapelIds ?: [0])->orderBy('nama_mapel')->get();
             $siswa = Siswa::with('kelas')->whereIn('kelas_id', $teachingKelasIds ?: [0])->orderBy('nama_lengkap')->get();
-
-            $jadwalMapelByKelas = $guru?->jadwal()
-                ->get(['kelas_id', 'mapel_id'])
-                ->groupBy('kelas_id')
-                ->map(fn ($items) => $items->pluck('mapel_id')->unique()->values()->all())
-                ->all() ?? [];
         } else {
             $kelas = Kelas::orderBy('nama_kelas')->get();
+            $mapelByKelas = Kelas::getMapelByKelasMapping();
             $mapel = MataPelajaran::orderBy('nama_mapel')->get();
             $siswa = Siswa::with('kelas')->orderBy('nama_lengkap')->get();
-            $jadwalMapelByKelas = null;
         }
 
-        return compact('siswa', 'mapel', 'kelas', 'jadwalMapelByKelas');
+        return compact('siswa', 'mapel', 'kelas', 'mapelByKelas');
     }
 }

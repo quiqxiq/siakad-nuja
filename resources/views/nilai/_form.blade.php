@@ -3,14 +3,14 @@
         selectedKelas: '{{ old('kelas_id', $nilai->kelas_id ?? '') }}',
         selectedMapel: '{{ old('mapel_id', $nilai->mapel_id ?? '') }}',
         selectedSiswa: '{{ old('siswa_id', $nilai->siswa_id ?? '') }}',
-        jadwalMapelByKelas: {{ json_encode($jadwalMapelByKelas ?? null) }},
-        isMapelAvailable(mapelId) {
-            if (!this.selectedKelas || !this.jadwalMapelByKelas) return true;
-            const allowed = this.jadwalMapelByKelas[this.selectedKelas];
-            return !allowed || allowed.includes(parseInt(mapelId));
+        mapelByKelas: {{ json_encode($mapelByKelas ?? []) }},
+        get availableMapels() {
+            if (!this.selectedKelas) return [];
+            return this.mapelByKelas[this.selectedKelas] || [];
         },
         onKelasChange() {
-            if (this.selectedMapel && !this.isMapelAvailable(this.selectedMapel)) {
+            const availableIds = this.availableMapels.map(m => String(m.id));
+            if (this.selectedMapel && !availableIds.includes(String(this.selectedMapel))) {
                 this.selectedMapel = '';
             }
         }
@@ -22,16 +22,18 @@
         @endforeach
     </x-form.select>
 
-    <x-form.select label="Mata Pelajaran" name="mapel_id" x-model="selectedMapel" :placeholder="false" required>
-        <option value="">-- Pilih Mata Pelajaran --</option>
-        @foreach ($mapel as $m)
-            <option value="{{ $m->id }}"
-                x-show="isMapelAvailable('{{ $m->id }}')"
-                @selected(old('mapel_id', $nilai->mapel_id ?? '') == $m->id)>
-                {{ $m->nama_mapel }} (KKM: {{ $m->kkm ?? 75 }})
-            </option>
-        @endforeach
-    </x-form.select>
+    <x-form.searchable-select
+        label="Mata Pelajaran"
+        name="mapel_id"
+        :options="[]"
+        optionsExpr="availableMapels"
+        disabledExpr="!selectedKelas"
+        placeholder="-- Pilih Mata Pelajaran --"
+        disabledPlaceholder="-- Pilih Kelas Terlebih Dahulu --"
+        searchPlaceholder="Ketik nama mata pelajaran..."
+        emptyText="Tidak ada mata pelajaran yang cocok dengan pencarian"
+        disabledHint="Pilih kelas terlebih dahulu untuk melihat daftar mata pelajaran kelas tersebut."
+        required />
 
     @php
         $siswaOptions = $siswa->map(fn($s) => [
@@ -44,7 +46,7 @@
 
     <div class="sm:col-span-2">
         <x-form.searchable-select
-            label="Siswa"
+            label="Nama Siswa"
             name="siswa_id"
             :options="$siswaOptions"
             :selected="old('siswa_id', $nilai->siswa_id ?? '')"

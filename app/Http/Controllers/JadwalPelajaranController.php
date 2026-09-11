@@ -96,10 +96,24 @@ class JadwalPelajaranController extends Controller
      */
     private function formData(): array
     {
-        return [
-            'kelas' => Kelas::orderBy('nama_kelas')->get(),
-            'mapel' => MataPelajaran::orderBy('nama_mapel')->get(),
-            'guru' => Guru::orderBy('nama_lengkap')->get(),
-        ];
+        $user = request()->user();
+        $isGuru = $user?->isGuru();
+        $guruModel = $user?->guru;
+
+        if ($isGuru) {
+            $teachingKelasIds = $guruModel?->teachingKelasIds() ?? [];
+            $kelas = Kelas::whereIn('id', $teachingKelasIds ?: [0])->orderBy('nama_kelas')->get();
+            $teachingMapelIds = $guruModel?->teachingMapelIds() ?? [];
+            $mapelByKelas = Kelas::getMapelByKelasMapping($teachingMapelIds);
+            $mapel = MataPelajaran::whereIn('id', $teachingMapelIds ?: [0])->orderBy('nama_mapel')->get();
+            $guru = collect([$guruModel]);
+        } else {
+            $kelas = Kelas::orderBy('nama_kelas')->get();
+            $mapelByKelas = Kelas::getMapelByKelasMapping();
+            $mapel = MataPelajaran::orderBy('nama_mapel')->get();
+            $guru = Guru::orderBy('nama_lengkap')->get();
+        }
+
+        return compact('kelas', 'mapel', 'mapelByKelas', 'guru');
     }
 }

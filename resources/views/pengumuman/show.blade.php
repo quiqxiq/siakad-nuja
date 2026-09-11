@@ -22,7 +22,7 @@
         <div class="min-w-0 flex-1">
             <h2 class="text-lg font-semibold text-slate-900 dark:text-white">{{ $pengumuman->judul }}</h2>
             <div class="mt-2 flex flex-wrap items-center gap-2">
-                <x-badge variant="brand">{{ $pengumuman->target_role ?? 'semua' }}</x-badge>
+                <x-badge variant="brand">{{ match ($pengumuman->target_role) { 'wali' => 'Wali Murid', 'guru' => 'Guru', default => 'Semua' } }}</x-badge>
                 <x-badge :variant="$pengumuman->is_active ? 'success' : 'slate'">{{ $pengumuman->is_active ? 'Aktif' : 'Nonaktif' }}</x-badge>
             </div>
         </div>

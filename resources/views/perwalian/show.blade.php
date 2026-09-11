@@ -81,7 +81,7 @@
                             </div>
                         </td>
                         <td class="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                            @if ($s->jenis_kelamin === 'Laki-laki')
+                            @if ($s->jenis_kelamin_kode === 'L')
                                 <span class="inline-flex items-center gap-1 text-sky-600 font-medium">L</span>
                             @else
                                 <span class="inline-flex items-center gap-1 text-rose-600 font-medium">P</span>
@@ -136,7 +136,7 @@
                     <div class="flex items-start justify-between gap-2">
                         <div>
                             <p class="font-semibold text-slate-900 dark:text-white">{{ $s->nama_lengkap }}</p>
-                            <p class="text-xs text-slate-500">NIS: {{ $s->nis }} • {{ $s->jenis_kelamin }}</p>
+                            <p class="text-xs text-slate-500">NIS: {{ $s->nis }} • {{ $s->jenis_kelamin_teks }}</p>
                         </div>
                         <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
                             {{ $s->status ?? 'Aktif' }}

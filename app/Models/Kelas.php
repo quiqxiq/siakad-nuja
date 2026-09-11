@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Kelas extends Model
@@ -42,6 +43,47 @@ class Kelas extends Model
     public function nilai(): HasMany
     {
         return $this->hasMany(Nilai::class, 'kelas_id');
+    }
+
+    public function mataPelajaran(): BelongsToMany
+    {
+        return $this->belongsToMany(MataPelajaran::class, 'kelas_mata_pelajaran', 'kelas_id', 'mapel_id')
+            ->withTimestamps();
+    }
+
+    /**
+     * Mengembalikan pemetaan array kelas_id => daftar mata pelajaran untuk form cascading.
+     *
+     * @param  array<int, int>|null  $accessibleMapelIds
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    public static function getMapelByKelasMapping(?array $accessibleMapelIds = null): array
+    {
+        $kelasList = static::with(['mataPelajaran' => fn ($q) => $q->orderBy('nama_mapel')])->get();
+        $allMapel = MataPelajaran::orderBy('nama_mapel')->get();
+
+        $mapping = [];
+        foreach ($kelasList as $kelas) {
+            $mapels = $kelas->mataPelajaran;
+            // Fallback ke jenjang jika belum ada relasi eksplisit di kelas_mata_pelajaran
+            if ($mapels->isEmpty()) {
+                $mapels = $allMapel->where('jenjang', $kelas->jenjang);
+            }
+
+            if ($accessibleMapelIds !== null) {
+                $mapels = $mapels->whereIn('id', $accessibleMapelIds);
+            }
+
+            $mapping[$kelas->id] = $mapels->map(fn ($m) => [
+                'id' => $m->id,
+                'nama_mapel' => $m->nama_mapel,
+                'kode_mapel' => $m->kode_mapel,
+                'kkm' => $m->kkm,
+                'jenjang' => $m->jenjang,
+            ])->values()->all();
+        }
+
+        return $mapping;
     }
 
     /**

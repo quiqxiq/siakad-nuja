@@ -119,11 +119,14 @@ class AbsensiController extends Controller
         $this->authorize('create', Absensi::class);
 
         $jadwal = $this->jadwalTerpilih($request)
-            ->with(['mapel', 'kelas'])
+            ->with(['mapel', 'kelas', 'guru'])
             ->orderBy('kelas_id')
             ->get();
 
-        return view('absensi.create', compact('jadwal'));
+        $kelasIds = $jadwal->pluck('kelas_id')->unique()->filter()->all();
+        $kelasList = Kelas::whereIn('id', $kelasIds ?: [0])->orderBy('nama_kelas')->get();
+
+        return view('absensi.create', compact('jadwal', 'kelasList'));
     }
 
     /**

@@ -55,6 +55,36 @@ class Siswa extends Model
     }
 
     /**
+     * Label teks jenis kelamin yang ramah ('Laki-laki' / 'Perempuan').
+     */
+    public function getJenisKelaminTeksAttribute(): string
+    {
+        $jk = strtoupper(trim((string) $this->jenis_kelamin));
+        if ($jk === 'L' || str_starts_with($jk, 'LAKI')) {
+            return 'Laki-laki';
+        }
+        if ($jk === 'P' || str_starts_with($jk, 'PEREMPUAN')) {
+            return 'Perempuan';
+        }
+        return $this->jenis_kelamin ?: '-';
+    }
+
+    /**
+     * Kode 1 huruf jenis kelamin ('L' / 'P').
+     */
+    public function getJenisKelaminKodeAttribute(): string
+    {
+        $jk = strtoupper(trim((string) $this->jenis_kelamin));
+        if ($jk === 'L' || str_starts_with($jk, 'LAKI')) {
+            return 'L';
+        }
+        if ($jk === 'P' || str_starts_with($jk, 'PEREMPUAN')) {
+            return 'P';
+        }
+        return $jk;
+    }
+
+    /**
      * Dapatkan kontak utama wali murid untuk pengiriman notifikasi WA.
      * Mengutamakan yang di-flag is_kontak_utama = true, jika tidak ada mengambil kontak pertama yang punya no_wa/no_hp.
      */

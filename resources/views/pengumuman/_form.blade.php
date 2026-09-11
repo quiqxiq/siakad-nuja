@@ -8,7 +8,7 @@
     </div>
 
     <x-form.select label="Target Peran" name="target_role" :selected="old('target_role', $pengumuman->target_role ?? 'semua')" :placeholder="false">
-        @foreach (['semua' => 'Semua', 'admin' => 'Admin', 'guru' => 'Guru'] as $val => $label)
+        @foreach (['semua' => 'Semua (Guru & Wali Murid)', 'guru' => 'Guru', 'wali' => 'Wali Murid / Orang Tua'] as $val => $label)
             <option value="{{ $val }}" @selected(old('target_role', $pengumuman->target_role ?? 'semua') === $val)>{{ $label }}</option>
         @endforeach
     </x-form.select>

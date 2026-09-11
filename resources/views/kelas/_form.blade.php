@@ -22,11 +22,22 @@
         @endforeach
     </x-form.select>
 
-    <x-form.select label="Wali Kelas" name="wali_kelas_id" :selected="old('wali_kelas_id', $kelas->wali_kelas_id ?? '')">
-        @foreach ($guru as $g)
-            <option value="{{ $g->id }}" @selected(old('wali_kelas_id', $kelas->wali_kelas_id ?? '') == $g->id)>{{ $g->nama_lengkap }}</option>
-        @endforeach
-    </x-form.select>
+    @php
+        $guruOptions = $guru->map(fn($g) => [
+            'id' => $g->id,
+            'label' => $g->nama_lengkap,
+            'sublabel' => 'NIP: ' . ($g->nip ?: '-') . ($g->jabatan ? ' • ' . $g->jabatan : ''),
+        ])->values()->all();
+    @endphp
+
+    <x-form.searchable-select
+        label="Wali Kelas"
+        name="wali_kelas_id"
+        :options="$guruOptions"
+        :selected="old('wali_kelas_id', $kelas->wali_kelas_id ?? '')"
+        placeholder="— Cari & Pilih Wali Kelas —"
+        searchPlaceholder="Ketik nama atau NIP guru..."
+        emptyText="Tidak ada guru yang cocok dengan pencarian" />
 
     <x-form.input label="Kapasitas" name="kapasitas" type="number" :value="$kelas->kapasitas ?? ''" />
 </div>

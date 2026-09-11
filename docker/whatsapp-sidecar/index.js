@@ -16,6 +16,65 @@ const fs = require('fs');
 const { Client, LocalAuth, MessageMedia, Location } = require('whatsapp-web.js');
 const { discoverPersistedSessions } = require('./session-store');
 
+// Monkey-patch Puppeteer helper in whatsapp-web.js to prevent "already exists" & "context destroyed" crashes
+try {
+  const puppeteerUtil = require('whatsapp-web.js/src/util/Puppeteer');
+  if (puppeteerUtil) {
+    puppeteerUtil.exposeFunctionIfAbsent = async function (page, name, fn) {
+      if (!page) return;
+      try {
+        const exist = await page
+          .evaluate((n) => {
+            return typeof window !== 'undefined' && !!window[n];
+          }, name)
+          .catch(() => false);
+        if (exist) return;
+        await page.exposeFunction(name, fn);
+      } catch (e) {
+        if (
+          e &&
+          e.message &&
+          (e.message.includes('already exists') ||
+            e.message.includes('Execution context was destroyed') ||
+            e.message.includes('Target closed') ||
+            e.message.includes('Session closed'))
+        ) {
+          return;
+        }
+        throw e;
+      }
+    };
+  }
+} catch (err) {
+  console.warn('[laravel-wa-sidecar] failed to patch Puppeteer.exposeFunctionIfAbsent:', err.message);
+}
+
+// Monkey-patch Client.prototype.inject to gracefully handle frame navigation races
+try {
+  const originalInject = Client.prototype.inject;
+  Client.prototype.inject = async function () {
+    try {
+      return await originalInject.call(this);
+    } catch (e) {
+      if (
+        e &&
+        (e.message?.includes('Execution context was destroyed') ||
+          e.message?.includes('already exists') ||
+          e.message?.includes('Target closed') ||
+          e.message?.includes('Session closed') ||
+          e.message?.includes('auth timeout') ||
+          e === 'auth timeout')
+      ) {
+        console.warn('[laravel-wa-sidecar] non-fatal notice in Client.inject:', e.message || e);
+        return;
+      }
+      throw e;
+    }
+  };
+} catch (err) {
+  console.warn('[laravel-wa-sidecar] failed to patch Client.prototype.inject:', err.message);
+}
+
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const HOST = process.env.HOST || '127.0.0.1';
 const TOKEN = process.env.SIDECAR_TOKEN || '';
@@ -39,7 +98,31 @@ if (PID_FILE) {
   }
 }
 
-/** sessionId → { client, status, qrDataUri, subscribers: Set<res> } */
+/** Remove stale Chromium locks from crashed instances (including broken symlinks) */
+function cleanSessionLocks(sessionId) {
+  const sessionDir = path.join(SESSION_DIR, `session-${sessionId}`);
+  const staleLockFiles = [
+    'SingletonLock',
+    'SingletonSocket',
+    'SingletonCookie',
+    'DevToolsActivePort',
+  ];
+  for (const file of staleLockFiles) {
+    try {
+      const lockPath = path.join(sessionDir, file);
+      fs.rmSync(lockPath, { force: true, recursive: true });
+    } catch (_) {}
+  }
+  try {
+    const defaultDir = path.join(sessionDir, 'Default');
+    for (const file of staleLockFiles) {
+      const lockPath = path.join(defaultDir, file);
+      fs.rmSync(lockPath, { force: true, recursive: true });
+    }
+  } catch (_) {}
+}
+
+/** sessionId → { client, status, qrDataUri, pairingCode, subscribers: Set<res>, errorMessage } */
 const sessions = new Map();
 
 function auth(req, res, next) {
@@ -91,15 +174,18 @@ function serializeMessage(m) {
   };
 }
 
-async function bootSession(sessionId) {
+async function bootSession(sessionId, force = false) {
   const existing = sessions.get(sessionId);
-  if (existing && existing.status !== 'error' && existing.status !== 'disconnected') {
+  if (!force && existing && existing.status !== 'error' && existing.status !== 'disconnected' && existing.client?.pupPage) {
     return existing;
   }
   if (existing) {
     try { await existing.client.destroy(); } catch (_) {}
     sessions.delete(sessionId);
   }
+
+  // Clean stale singleton locks left by prior browser crashes
+  cleanSessionLocks(sessionId);
 
   // Reuse a system Chrome/Chromium when PUPPETEER_EXECUTABLE_PATH is set
   // (e.g. installed with --skip-chromium). Falls back to Puppeteer's bundled
@@ -111,11 +197,32 @@ async function bootSession(sessionId) {
     puppeteer: {
       headless: true,
       executablePath,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--disable-gpu',
+      ],
+    },
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+    webVersionCache: {
+      type: 'remote',
+      remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1047151772-alpha.html',
+      strict: false,
     },
   });
 
-  const session = { client, status: 'initializing', qrDataUri: null, pairingCode: null, subscribers: new Set() };
+  const session = {
+    client,
+    status: 'initializing',
+    qrDataUri: null,
+    pairingCode: null,
+    subscribers: new Set(),
+    errorMessage: null,
+  };
   sessions.set(sessionId, session);
 
   client.on('qr', async (qr) => {
@@ -133,18 +240,21 @@ async function bootSession(sessionId) {
   client.on('authenticated', () => {
     session.status = 'authenticated';
     session.pairingCode = null;
+    session.errorMessage = null;
     broadcast(sessionId, 'authenticated', {});
   });
 
   client.on('auth_failure', (msg) => {
     session.status = 'auth_failure';
     session.pairingCode = null;
+    session.errorMessage = msg;
     broadcast(sessionId, 'auth_failure', { message: msg });
   });
 
   client.on('ready', () => {
     session.status = 'ready';
     session.pairingCode = null;
+    session.errorMessage = null;
     broadcast(sessionId, 'ready', {});
   });
 
@@ -168,8 +278,10 @@ async function bootSession(sessionId) {
   // Don't await — initialize() resolves only after 'ready'. We want
   // /start to return immediately so the caller can poll for QR.
   client.initialize().catch((e) => {
+    console.error(`[laravel-wa-sidecar] session ${sessionId} initialize error:`, e.message || e);
     session.status = 'error';
-    broadcast(sessionId, 'error', { message: e.message });
+    session.errorMessage = e.message || String(e);
+    broadcast(sessionId, 'error', { message: session.errorMessage });
   });
 
   return session;
@@ -222,7 +334,8 @@ app.get('/sessions', (_, res) => {
 
 app.post('/sessions/:id/start', async (req, res, next) => {
   try {
-    const s = await bootSession(req.params.id);
+    const force = req.query.force === 'true' || req.body?.force === true;
+    const s = await bootSession(req.params.id, force);
     res.json({ id: req.params.id, status: s.status, qr: s.qrDataUri, code: s.pairingCode });
   } catch (e) { next(e); }
 });
@@ -247,25 +360,31 @@ app.delete('/sessions/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-app.get('/sessions/:id/qr', (req, res, next) => {
+app.get('/sessions/:id/qr', async (req, res, next) => {
   try {
-    const s = getSession(req.params.id);
+    let s = sessions.get(req.params.id);
+    if (!s || s.status === 'error') {
+      s = await bootSession(req.params.id, true);
+    }
     res.json({ status: s.status, qr: s.qrDataUri, code: s.pairingCode });
   } catch (e) { next(e); }
 });
 
-app.get('/sessions/:id/status', (req, res, next) => {
+app.get('/sessions/:id/status', async (req, res, next) => {
   try {
-    const s = getSession(req.params.id);
-    res.json({ id: req.params.id, status: s.status, code: s.pairingCode, qr: s.qrDataUri });
+    let s = sessions.get(req.params.id);
+    if (!s) {
+      s = await bootSession(req.params.id);
+    }
+    res.json({ id: req.params.id, status: s.status, code: s.pairingCode, qr: s.qrDataUri, error: s.errorMessage });
   } catch (e) { next(e); }
 });
 
 app.post('/sessions/:id/pairing-code', async (req, res, next) => {
   try {
     let s = sessions.get(req.params.id);
-    if (!s) {
-      s = await bootSession(req.params.id);
+    if (!s || s.status === 'error' || s.status === 'disconnected') {
+      s = await bootSession(req.params.id, true);
     }
     const phone = req.body?.phoneNumber || req.body?.phone_number || req.body?.phone || '';
     if (!phone) {
@@ -278,9 +397,35 @@ app.post('/sessions/:id/pairing-code', async (req, res, next) => {
 
     // Wait until pupPage is available if still initializing
     let retries = 0;
-    while ((s.status === 'initializing' || !s.client.pupPage) && retries < 30) {
+    while ((s.status === 'initializing' || !s.client?.pupPage) && retries < 40) {
+      if (s.status === 'error' || s.status === 'disconnected') {
+        throw Object.assign(
+          new Error(`Inisialisasi browser gagal (${s.errorMessage || 'error'}). Silakan coba lagi.`),
+          { http: 500 }
+        );
+      }
       await new Promise((resolve) => setTimeout(resolve, 500));
       retries++;
+    }
+
+    if (!s.client?.pupPage) {
+      throw Object.assign(
+        new Error('Browser Puppeteer sidecar belum siap (timeout). Silakan klik inisialisasi ulang dan coba kembali.'),
+        { http: 503 }
+      );
+    }
+
+    // Wait until AuthStore / PairingCodeLinkUtils or WhatsApp Web scripts are ready in page
+    let readyRetries = 0;
+    while (readyRetries < 30) {
+      try {
+        const isAuthStoreReady = await s.client.pupPage.evaluate(() => {
+          return typeof window.AuthStore !== 'undefined' && typeof window.AuthStore.PairingCodeLinkUtils !== 'undefined';
+        });
+        if (isAuthStoreReady) break;
+      } catch (_) {}
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      readyRetries++;
     }
 
     const code = await s.client.requestPairingCode(cleanPhone);
@@ -292,9 +437,12 @@ app.post('/sessions/:id/pairing-code', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-app.get('/sessions/:id/pairing-code', (req, res, next) => {
+app.get('/sessions/:id/pairing-code', async (req, res, next) => {
   try {
-    const s = getSession(req.params.id);
+    let s = sessions.get(req.params.id);
+    if (!s) {
+      s = await bootSession(req.params.id);
+    }
     res.json({ id: req.params.id, status: s.status, code: s.pairingCode });
   } catch (e) { next(e); }
 });
@@ -523,7 +671,7 @@ app.get('/sessions/:id/contacts/:number/exists', async (req, res, next) => {
 function withTimeout(promise, ms) {
   return Promise.race([
     promise.catch(() => null),
-    new Promise(resolve => setTimeout(() => resolve(null), ms)),
+    new Promise((resolve) => setTimeout(() => resolve(null), ms)),
   ]);
 }
 
@@ -649,4 +797,3 @@ process.on('unhandledRejection', (reason) => {
 process.on('uncaughtException', (err) => {
   console.warn('[laravel-wa-sidecar] uncaught exception caught (non-fatal):', err?.message || err);
 });
-

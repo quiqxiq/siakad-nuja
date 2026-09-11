@@ -14,6 +14,18 @@ class SiswaRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('jenis_kelamin')) {
+            $jk = strtoupper(trim((string) $this->input('jenis_kelamin')));
+            if ($jk === 'L' || str_starts_with($jk, 'LAKI')) {
+                $this->merge(['jenis_kelamin' => 'L']);
+            } elseif ($jk === 'P' || str_starts_with($jk, 'PEREMPUAN')) {
+                $this->merge(['jenis_kelamin' => 'P']);
+            }
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -28,7 +40,7 @@ class SiswaRequest extends FormRequest
             'nama_lengkap' => ['required', 'string', 'max:150'],
             'kelas_id' => ['required', 'exists:kelas,id'],
             'tanggal_lahir' => ['nullable', 'date'],
-            'jenis_kelamin' => ['required', Rule::in(['L', 'P'])],
+            'jenis_kelamin' => ['required', Rule::in(['L', 'P', 'Laki-laki', 'Perempuan'])],
             'alamat' => ['nullable', 'string'],
             'foto' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'status' => ['nullable', Rule::in(['Aktif', 'Lulus', 'Pindah', 'Keluar'])],

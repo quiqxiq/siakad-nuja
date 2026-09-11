@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MataPelajaran extends Model
@@ -21,6 +22,12 @@ class MataPelajaran extends Model
         'kkm',
         'deskripsi',
     ];
+
+    public function kelas(): BelongsToMany
+    {
+        return $this->belongsToMany(Kelas::class, 'kelas_mata_pelajaran', 'mapel_id', 'kelas_id')
+            ->withTimestamps();
+    }
 
     public function jadwal(): HasMany
     {

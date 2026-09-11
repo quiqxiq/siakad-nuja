@@ -25,7 +25,7 @@
                         <td class="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white whitespace-nowrap">{{ $p->judul }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             <div class="flex flex-col gap-1 items-start">
-                                <x-badge variant="brand">{{ ucfirst($p->target_role ?? 'semua') }}</x-badge>
+                                <x-badge variant="brand">{{ match ($p->target_role) { 'wali' => 'Wali Murid', 'guru' => 'Guru', default => 'Semua' } }}</x-badge>
                                 @if ($p->kelas)
                                     <x-badge variant="info">Khusus {{ $p->kelas->nama_kelas }}</x-badge>
                                 @else

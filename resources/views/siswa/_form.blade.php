@@ -2,18 +2,33 @@
     <x-form.input label="NIS" name="nis" :value="$siswa->nis ?? ''" inputmode="numeric" pattern="[0-9]*" placeholder="contoh: 12345678" required />
     <x-form.input label="Nama Lengkap" name="nama_lengkap" :value="$siswa->nama_lengkap ?? ''" required />
 
-    <x-form.select label="Kelas" name="kelas_id" :selected="old('kelas_id', $siswa->kelas_id ?? '')" required>
-        @foreach ($kelas as $k)
-            <option value="{{ $k->id }}" @selected(old('kelas_id', $siswa->kelas_id ?? '') == $k->id)>{{ $k->nama_lengkap }}</option>
-        @endforeach
-    </x-form.select>
+    @php
+        $kelasOptions = $kelas->map(fn($k) => [
+            'id' => $k->id,
+            'label' => $k->nama_lengkap,
+            'sublabel' => 'Tahun Ajaran ' . $k->tahun_ajaran . ($k->waliKelas ? ' • Wali: ' . $k->waliKelas->nama_lengkap : ''),
+        ])->values()->all();
+    @endphp
+
+    <x-form.searchable-select
+        label="Kelas"
+        name="kelas_id"
+        :options="$kelasOptions"
+        :selected="old('kelas_id', $siswa->kelas_id ?? '')"
+        placeholder="— Cari & Pilih Kelas —"
+        searchPlaceholder="Ketik nama kelas atau jenjang..."
+        emptyText="Tidak ada kelas yang cocok dengan pencarian"
+        required />
 
     <x-form.input label="Tanggal Lahir" name="tanggal_lahir" type="date"
         :value="isset($siswa) ? optional($siswa->tanggal_lahir)->format('Y-m-d') : ''" />
 
-    <x-form.select label="Jenis Kelamin" name="jenis_kelamin" :selected="old('jenis_kelamin', $siswa->jenis_kelamin ?? '')" required>
-        <option value="L" @selected(old('jenis_kelamin', $siswa->jenis_kelamin ?? '') === 'L')>Laki-laki</option>
-        <option value="P" @selected(old('jenis_kelamin', $siswa->jenis_kelamin ?? '') === 'P')>Perempuan</option>
+    @php
+        $selectedJk = old('jenis_kelamin', isset($siswa) ? ($siswa->jenis_kelamin_kode ?? $siswa->jenis_kelamin ?? '') : '');
+    @endphp
+    <x-form.select label="Jenis Kelamin" name="jenis_kelamin" :selected="$selectedJk" required>
+        <option value="L" @selected($selectedJk === 'L')>Laki-laki</option>
+        <option value="P" @selected($selectedJk === 'P')>Perempuan</option>
     </x-form.select>
 
     <x-form.input label="Tahun Masuk" name="tahun_masuk" type="number" min="1990" :max="date('Y')" :value="$siswa->tahun_masuk ?? date('Y')" required />

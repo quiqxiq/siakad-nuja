@@ -41,7 +41,7 @@
                         <td class="px-4 py-3 text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ $s->nis }}</td>
                         <td class="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white whitespace-nowrap">{{ $s->nama_lengkap }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $s->kelas->nama_lengkap ?? '-' }}</td>
-                        <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $s->jenis_kelamin ?? '-' }}</td>
+                        <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $s->jenis_kelamin_teks }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $s->tahun_masuk }}</td>
                         <td class="px-4 py-3 whitespace-nowrap">
                             @php $stColor = ['Aktif' => 'success', 'Lulus' => 'info', 'Pindah' => 'warning', 'Keluar' => 'danger'][$s->status ?? 'Aktif'] ?? 'slate'; @endphp
@@ -77,8 +77,9 @@
                             @endif
                         </div>
                     </div>
-                    <dl class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    <dl class="mt-2 grid grid-cols-3 gap-x-4 gap-y-1 text-sm">
                         <div><dt class="text-xs text-slate-400">Kelas</dt><dd class="text-slate-700 dark:text-slate-300">{{ $s->kelas->nama_lengkap ?? '-' }}</dd></div>
+                        <div><dt class="text-xs text-slate-400">JK</dt><dd class="text-slate-700 dark:text-slate-300">{{ $s->jenis_kelamin_teks }}</dd></div>
                         <div><dt class="text-xs text-slate-400">Status</dt><dd class="text-slate-700 dark:text-slate-300">{{ $s->status ?? 'Aktif' }}</dd></div>
                     </dl>
                 </div>

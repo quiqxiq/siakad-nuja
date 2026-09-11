@@ -5,12 +5,30 @@
         'sublabel' => 'NIS: ' . $s->nis . ' • ' . ($s->kelas->nama_lengkap ?? '-'),
         'kelas_id' => $s->kelas_id,
     ])->values()->all();
+
+    $pekerjaanList = [
+        'Petani',
+        'Wiraswasta / Pedagang',
+        'Pengrajin / Tukang Ukir Kayu',
+        'Nelayan',
+        'Peternak',
+        'Buruh Tani / Harian Lepas',
+        'Tukang Bangunan',
+        'Guru / Ustadz',
+        'PNS / ASN / TNI / Polri',
+        'Karyawan Swasta',
+        'Sopir / Pengemudi',
+        'Ibu Rumah Tangga',
+        'TKI / Pekerja Migran',
+        'Lainnya',
+    ];
+    $currentPekerjaan = old('pekerjaan', $orangTua->pekerjaan ?? '');
 @endphp
 
 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
     <div class="sm:col-span-2">
         <x-form.searchable-select
-            label="Siswa"
+            label="Nama Siswa"
             name="siswa_id"
             :options="$siswaOptions"
             :selected="old('siswa_id', $orangTua->siswa_id ?? '')"
@@ -18,7 +36,7 @@
             required />
     </div>
 
-    <x-form.input label="Nama" name="nama" :value="$orangTua->nama ?? ''" required />
+    <x-form.input label="Nama Orang Tua" name="nama" :value="$orangTua->nama ?? ''" required />
 
     <x-form.select label="Hubungan" name="hubungan" :selected="old('hubungan', $orangTua->hubungan ?? '')">
         @foreach (['Ayah', 'Ibu', 'Wali'] as $h)
@@ -26,11 +44,17 @@
         @endforeach
     </x-form.select>
 
-    <x-form.input label="No. HP" name="no_hp" type="tel" inputmode="numeric" :value="$orangTua->no_hp ?? ''" placeholder="08..." />
+    <x-form.input label="Nomor WhatsApp" name="no_wa" type="tel" inputmode="numeric" :value="old('no_wa', $orangTua->no_wa ?? $orangTua->no_hp ?? '')" placeholder="08..." hint="Satu nomor utama untuk notifikasi &amp; chatbot WA" required />
 
-    <x-form.input label="No. WhatsApp" name="no_wa" type="tel" inputmode="numeric" :value="$orangTua->no_wa ?? ''" placeholder="08..." hint="Nomor utama pengiriman notifikasi WA" />
-
-    <x-form.input label="Pekerjaan" name="pekerjaan" :value="$orangTua->pekerjaan ?? ''" />
+    <x-form.select label="Pekerjaan" name="pekerjaan" :selected="$currentPekerjaan">
+        <option value="">— Pilih Pekerjaan —</option>
+        @foreach ($pekerjaanList as $pek)
+            <option value="{{ $pek }}" @selected($currentPekerjaan === $pek)>{{ $pek }}</option>
+        @endforeach
+        @if ($currentPekerjaan && ! in_array($currentPekerjaan, $pekerjaanList, true))
+            <option value="{{ $currentPekerjaan }}" selected>{{ $currentPekerjaan }}</option>
+        @endif
+    </x-form.select>
 
     <div class="sm:col-span-2">
         <x-form.textarea label="Alamat" name="alamat" :value="$orangTua->alamat ?? ''" rows="3" />

@@ -22,7 +22,7 @@ class MataPelajaranFactory extends Factory
         return [
             'kode_mapel' => strtoupper(fake()->unique()->bothify('MP-###')),
             'nama_mapel' => fake()->words(2, true),
-            'jenjang' => 'SMP',
+            'jenjang' => 'MTs',
             'kkm' => fake()->numberBetween(70, 78),
             'deskripsi' => fake()->sentence(),
         ];

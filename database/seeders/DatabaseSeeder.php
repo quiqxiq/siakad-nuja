@@ -364,6 +364,13 @@ class DatabaseSeeder extends Seeder
             ]);
 
             $jadwalList[] = $jadwal;
+
+            DB::table('kelas_mata_pelajaran')->insertOrIgnore([
+                'kelas_id' => $kelas->id,
+                'mapel_id' => $mapel->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
 
         return $jadwalList;

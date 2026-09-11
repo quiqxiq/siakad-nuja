@@ -79,23 +79,15 @@ class ChatbotService
 
         // Jika nomor belum terdaftar sebagai wali
         if (! $orangTuaRef) {
-            $rule = \App\Models\ChatbotRule::where('is_active', true)
-                ->where(function ($q) use ($pesanMasuk): void {
-                    $q->where('keyword', trim($pesanMasuk))
-                      ->orWhere('keyword', strtoupper(trim($pesanMasuk)));
-                })
-                ->first();
-
-            if ($rule) {
-                $balasan = ($rule->tipe_action === 'system_query')
-                    ? $this->getInfoAgenda()
-                    : ($rule->isi_balasan ?? 'Informasi tidak tersedia.');
-            } else {
-                $balasan = "🏫 *SIAKAD Nurul Jadid Karduluk*\n\nSelamat datang. Nomor Anda belum terdaftar sebagai Wali Siswa.\n\nJika Anda adalah Wali Siswa, silakan hubungi admin sekolah untuk mendaftarkan nomor WhatsApp Anda.";
-            }
+            $cs = Konfigurasi::get('cs_whatsapp', '08123456789');
+            $balasan = "🏫 *SIAKAD Nurul Jadid Karduluk*\n\n"
+                . "Mohon maaf, nomor WhatsApp Anda belum terdaftar di sistem SIAKAD NUJA.\n\n"
+                . "Layanan informasi nilai, kehadiran, tagihan, dan pengumuman siswa hanya dapat diakses oleh Wali Siswa terdaftar.\n\n"
+                . "Jika Anda adalah Orang Tua / Wali Siswa, silakan hubungi pihak tata usaha / admin madrasah untuk mendaftarkan nomor WhatsApp Anda:\n"
+                . "📞 WhatsApp Admin: wa.me/{$cs}";
 
             $displayNum = $cleanSender ? $this->toLokalFormat($cleanSender) : $this->toLokalFormat($cleanNoHp);
-            $this->balasDanLog($noHp, $pesanMasuk, $balasan, null, null, 'GUEST_USER', $displayNum);
+            $this->balasDanLog($noHp, $pesanMasuk, $balasan, null, null, 'GUEST_UNREGISTERED', $displayNum);
             return;
         }
 
@@ -126,7 +118,10 @@ class ChatbotService
             ->orWhere('no_hp', $cleanNoHp)
             ->first();
 
+        $isFirstInteraction = false;
+
         if (! $session) {
+            $isFirstInteraction = true;
             $session = ChatbotSession::create([
                 'no_hp'            => $noHp,
                 'orang_tua_id'     => $orangTuaRef->id,
@@ -146,6 +141,7 @@ class ChatbotService
 
         // Reset sesi jika sudah timeout (> 30 menit)
         if ($session->last_activity && Carbon::parse($session->last_activity)->diffInMinutes(now()) > self::TIMEOUT_MINUTES) {
+            $isFirstInteraction = true;
             $session->update([
                 'state'            => $semua->count() > 1 ? 'PILIH_ANAK' : 'MENU_UTAMA',
                 'anak_terpilih_id' => $singleSiswaId,
@@ -159,7 +155,8 @@ class ChatbotService
             $session,
             $orangTuaRef,
             $semua,
-            trim($pesanMasuk)
+            trim($pesanMasuk),
+            $isFirstInteraction
         );
 
         $session->update([
@@ -179,7 +176,8 @@ class ChatbotService
         ChatbotSession $session,
         OrangTua $orangTua,
         Collection $semuaAnak,
-        string $input
+        string $input,
+        bool $isFirstInteraction = false
     ): array {
         $inputUpper = strtoupper($input);
 
@@ -194,7 +192,9 @@ class ChatbotService
         }
 
         // Perintah global: Menu / Bantuan / Salam
-        if (in_array($inputUpper, ['MENU', 'HELP', 'BANTUAN', 'HALO', 'HAI', 'ASSALAMUALAIKUM', 'INFO', 'MULAI', 'START', 'TES'], true)) {
+        $isGreeting = in_array($inputUpper, ['MENU', 'HELP', 'BANTUAN', 'HALO', 'HAI', 'ASSALAMUALAIKUM', 'ASSALAMU\'ALAIKUM', 'INFO', 'MULAI', 'START', 'TES', 'TEST', 'P', 'PING', 'PAGI', 'SIANG', 'SORE', 'MALAM', 'SALAM'], true);
+
+        if ($isGreeting || ($isFirstInteraction && ! is_numeric($input))) {
             if ($semuaAnak->count() > 1 && ! $session->anak_terpilih_id) {
                 return [
                     $this->getPilihAnakText($semuaAnak),
@@ -218,8 +218,8 @@ class ChatbotService
 
         return match ($session->state) {
             'PILIH_ANAK' => $this->handlePilihAnak($session, $orangTua, $semuaAnak, $input),
-            'MENU_UTAMA' => $this->handleMenuUtama($session, $orangTua, $semuaAnak, $input),
-            default      => $this->handleMenuUtama($session, $orangTua, $semuaAnak, $input),
+            'MENU_UTAMA' => $this->handleMenuUtama($session, $orangTua, $semuaAnak, $input, $isFirstInteraction),
+            default      => $this->handleMenuUtama($session, $orangTua, $semuaAnak, $input, $isFirstInteraction),
         };
     }
 
@@ -249,7 +249,8 @@ class ChatbotService
         ChatbotSession $session,
         OrangTua $orangTua,
         Collection $semua,
-        string $input
+        string $input,
+        bool $isFirstInteraction = false
     ): array {
         $siswaAktif = $session->anak_terpilih_id
             ? Siswa::with('kelas')->find($session->anak_terpilih_id)
@@ -278,6 +279,10 @@ class ChatbotService
             }
 
             $intent = 'RULE_' . strtoupper($rule->keyword);
+        } elseif ($isFirstInteraction) {
+            // Pada interaksi awal, tampilkan ucapan selamat datang dan menu tanpa pesan error
+            $balasan = $this->getMenuUtamaText($orangTua->nama, $siswaAktif, $semua->count() > 1);
+            $intent = 'FIRST_INTERACTION_MENU';
         } else {
             // Keyword tidak dikenali &rarr; tampilkan panduan menu
             $balasan = "⚠️ Perintah tidak dikenali.\n\n"
@@ -319,11 +324,11 @@ class ChatbotService
 
     private function getMenuUtamaText(string $nama, ?Siswa $siswa, bool $punya_banyak_anak): string
     {
-        $header = "🏫 *SIAKAD Nurul Jadid Karduluk*\n";
-        $header .= "Selamat datang, *{$nama}*.";
+        $header = "🏫 *SIAKAD Nurul Jadid Karduluk*\n\n";
+        $header .= "Selamat datang, Bapak/Ibu *{$nama}*.\n";
         if ($siswa) {
-            $kelas = $siswa->kelas?->nama_kelas ?? '—';
-            $header .= "\nAnanda: *{$siswa->nama_lengkap}* (Kelas {$kelas})";
+            $kelasNama = $siswa->kelas?->nama_lengkap ?? ($siswa->kelas?->nama_kelas ? 'Kelas ' . $siswa->kelas->nama_kelas : '—');
+            $header .= "Wali dari Ananda: *{$siswa->nama_lengkap}* ({$kelasNama})\n";
         }
 
         $rules = \App\Models\ChatbotRule::where('is_active', true)
@@ -331,9 +336,9 @@ class ChatbotService
             ->orderBy('id')
             ->get();
 
-        $menu = "\n\nKetik angka/layanan:\n";
+        $menu = "\nSilakan ketik nomor atau kata kunci layanan berikut:\n";
         foreach ($rules as $rule) {
-            $menu .= "[{$rule->keyword}] {$rule->judul_menu}\n";
+            $menu .= "👉 [{$rule->keyword}] {$rule->judul_menu}\n";
         }
 
         if ($punya_banyak_anak) {

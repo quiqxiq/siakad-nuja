@@ -14,6 +14,11 @@ if [ -d "/var/www/html/vendor/kstmostofa/laravel-whatsapp/sidecar/node_modules" 
         cp /var/www/html/docker/whatsapp-sidecar/index.js /var/www/html/vendor/kstmostofa/laravel-whatsapp/sidecar/index.js
     fi
 
+    # Bersihkan sisa lock file Chromium jika container sebelumnya di-kill paksa
+    rm -f /var/www/html/vendor/kstmostofa/laravel-whatsapp/sidecar/sessions/*/Singleton* \
+          /var/www/html/vendor/kstmostofa/laravel-whatsapp/sidecar/sessions/*/Default/Singleton* \
+          /var/www/html/vendor/kstmostofa/laravel-whatsapp/sidecar/sessions/*/DevToolsActivePort 2>/dev/null || true
+
     echo "Starting WhatsApp sidecar supervisor daemon..."
     (
         cd /var/www/html/vendor/kstmostofa/laravel-whatsapp/sidecar
