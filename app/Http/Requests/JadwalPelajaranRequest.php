@@ -14,12 +14,57 @@ class JadwalPelajaranRequest extends FormRequest
         return true;
     }
 
+    /**
+     * Waktu default berdasarkan jenjang dan jam_ke (1-4).
+     *
+     * @return array<int, array{start: string, end: string}>
+     */
+    public static function defaultTimeSlots(?string $jenjang = null): array
+    {
+        if ($jenjang === 'MTs') {
+            return [
+                1 => ['start' => '07:30', 'end' => '08:05'],
+                2 => ['start' => '08:05', 'end' => '08:40'],
+                3 => ['start' => '09:10', 'end' => '09:45'],
+                4 => ['start' => '09:45', 'end' => '10:20'],
+            ];
+        }
+
+        return [
+            1 => ['start' => '07:30', 'end' => '08:40'],
+            2 => ['start' => '09:10', 'end' => '10:20'],
+            3 => ['start' => '10:20', 'end' => '11:25'],
+            4 => ['start' => '11:25', 'end' => '12:35'],
+        ];
+    }
+
     protected function prepareForValidation(): void
     {
         if ($this->has('hari')) {
             $hari = (string) $this->input('hari');
             if (strcasecmp($hari, 'Ahad') === 0) {
                 $this->merge(['hari' => 'Minggu']);
+            }
+        }
+
+        if ($this->filled('jam_ke') && (! $this->filled('jam_mulai') || ! $this->filled('jam_selesai'))) {
+            $jamKe = (int) $this->input('jam_ke');
+            $jenjang = null;
+            if ($this->filled('kelas_id')) {
+                $kelas = \App\Models\Kelas::find($this->input('kelas_id'));
+                $jenjang = $kelas?->jenjang;
+            }
+
+            $slots = self::defaultTimeSlots($jenjang);
+            if (isset($slots[$jamKe])) {
+                $toMerge = [];
+                if (! $this->filled('jam_mulai')) {
+                    $toMerge['jam_mulai'] = $slots[$jamKe]['start'];
+                }
+                if (! $this->filled('jam_selesai')) {
+                    $toMerge['jam_selesai'] = $slots[$jamKe]['end'];
+                }
+                $this->merge($toMerge);
             }
         }
     }

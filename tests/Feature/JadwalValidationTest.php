@@ -188,4 +188,83 @@ class JadwalValidationTest extends TestCase
             'tahun_ajaran' => "Tahun ajaran tidak boleh melebihi tahun saat ini ({$currentYear}).",
         ]);
     }
+
+    public function test_jam_mulai_and_jam_selesai_auto_populated_based_on_jam_ke_and_jenjang(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $kelasMI = Kelas::create([
+            'nama_kelas' => '1',
+            'tingkat' => '1',
+            'jenjang' => 'MI',
+            'tahun_ajaran' => '2024/2025',
+        ]);
+        $mapelMI = MataPelajaran::factory()->create(['jenjang' => 'MI']);
+        $kelasMI->mataPelajaran()->attach($mapelMI->id);
+
+        $kelasMTs = Kelas::create([
+            'nama_kelas' => '7A',
+            'tingkat' => '7',
+            'jenjang' => 'MTs',
+            'tahun_ajaran' => '2024/2025',
+        ]);
+        $mapelMTs = MataPelajaran::factory()->create(['jenjang' => 'MTs']);
+        $kelasMTs->mataPelajaran()->attach($mapelMTs->id);
+
+        $guruUser = User::factory()->create(['role' => 'guru']);
+        $guru = Guru::create([
+            'user_id' => $guruUser->id,
+            'nip' => '198501012010011001',
+            'nama_lengkap' => 'Ustadz Ahmad, S.Pd.',
+        ]);
+
+        // MI: Jam ke-2 auto populates 09:10 - 10:20
+        $responseMI = $this->actingAs($admin)->post(route('jadwal.store'), [
+            'kelas_id' => $kelasMI->id,
+            'mapel_id' => $mapelMI->id,
+            'guru_id' => $guru->id,
+            'hari' => 'Senin',
+            'jam_ke' => 2,
+            'tahun_ajaran' => '2024/2025',
+        ]);
+
+        $responseMI->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('jadwal_pelajaran', [
+            'kelas_id' => $kelasMI->id,
+            'jam_ke' => 2,
+            'jam_mulai' => '09:10',
+            'jam_selesai' => '10:20',
+        ]);
+
+        // MTs: Jam ke-1 auto populates 07:30 - 08:05
+        $responseMTs = $this->actingAs($admin)->post(route('jadwal.store'), [
+            'kelas_id' => $kelasMTs->id,
+            'mapel_id' => $mapelMTs->id,
+            'guru_id' => $guru->id,
+            'hari' => 'Selasa',
+            'jam_ke' => 1,
+            'tahun_ajaran' => '2024/2025',
+        ]);
+
+        $responseMTs->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('jadwal_pelajaran', [
+            'kelas_id' => $kelasMTs->id,
+            'jam_ke' => 1,
+            'jam_mulai' => '07:30',
+            'jam_selesai' => '08:05',
+        ]);
+    }
+
+    public function test_jadwal_form_renders_auto_fill_time_attributes(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->actingAs($admin)->get(route('jadwal.create'));
+
+        $response->assertOk();
+        $response->assertSee('x-model="selectedJamKe"', false);
+        $response->assertSee('@change="onJamKeChange()"', false);
+        $response->assertSee('x-model="jamMulai"', false);
+        $response->assertSee('x-model="jamSelesai"', false);
+        $response->assertSee('timeSlots:', false);
+    }
 }

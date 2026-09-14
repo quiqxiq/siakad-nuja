@@ -3,16 +3,56 @@
         selectedKelas: '{{ old('kelas_id', $jadwal->kelas_id ?? '') }}',
         selectedMapel: '{{ old('mapel_id', $jadwal->mapel_id ?? '') }}',
         ruangan: '{{ old('ruangan', $jadwal->ruangan ?? '') }}',
+        selectedJamKe: '{{ old('jam_ke', $jadwal->jam_ke ?? '') }}',
+        jamMulai: '{{ old('jam_mulai', isset($jadwal) ? \Illuminate\Support\Str::substr($jadwal->jam_mulai, 0, 5) : '') }}',
+        jamSelesai: '{{ old('jam_selesai', isset($jadwal) ? \Illuminate\Support\Str::substr($jadwal->jam_selesai, 0, 5) : '') }}',
         mapelByKelas: {{ json_encode($mapelByKelas ?? []) }},
         kelasRuangan: {{ json_encode($kelas->pluck('ruangan', 'id') ?? []) }},
+        kelasJenjang: {{ json_encode($kelas->pluck('jenjang', 'id') ?? []) }},
+        timeSlots: {
+            MI: {
+                1: { start: '07:30', end: '08:40' },
+                2: { start: '09:10', end: '10:20' },
+                3: { start: '10:20', end: '11:25' },
+                4: { start: '11:25', end: '12:35' }
+            },
+            MTs: {
+                1: { start: '07:30', end: '08:05' },
+                2: { start: '08:05', end: '08:40' },
+                3: { start: '09:10', end: '09:45' },
+                4: { start: '09:45', end: '10:20' }
+            },
+            default: {
+                1: { start: '07:30', end: '08:40' },
+                2: { start: '09:10', end: '10:20' },
+                3: { start: '10:20', end: '11:25' },
+                4: { start: '11:25', end: '12:35' }
+            }
+        },
         init() {
             if (this.selectedKelas && !this.ruangan && this.kelasRuangan[this.selectedKelas]) {
                 this.ruangan = this.kelasRuangan[this.selectedKelas];
+            }
+            if (this.selectedJamKe && (!this.jamMulai || !this.jamSelesai)) {
+                this.applyTimeSlot();
             }
         },
         get availableMapels() {
             if (!this.selectedKelas) return [];
             return this.mapelByKelas[this.selectedKelas] || [];
+        },
+        applyTimeSlot() {
+            if (!this.selectedJamKe) return;
+            const jenjang = this.selectedKelas ? (this.kelasJenjang[this.selectedKelas] || 'default') : 'default';
+            const slots = this.timeSlots[jenjang] || this.timeSlots['default'];
+            const slot = slots[this.selectedJamKe];
+            if (slot) {
+                this.jamMulai = slot.start;
+                this.jamSelesai = slot.end;
+            }
+        },
+        onJamKeChange() {
+            this.applyTimeSlot();
         },
         onKelasChange() {
             const availableIds = this.availableMapels.map(m => String(m.id));
@@ -22,6 +62,11 @@
             if (this.selectedKelas && this.kelasRuangan[this.selectedKelas]) {
                 this.ruangan = this.kelasRuangan[this.selectedKelas];
             }
+            @if (!isset($jadwal))
+            if (this.selectedJamKe) {
+                this.applyTimeSlot();
+            }
+            @endif
         }
     }">
     <x-form.select label="Kelas" name="kelas_id" x-model="selectedKelas" @change="onKelasChange()" required :placeholder="false">
@@ -68,7 +113,7 @@
         @endforeach
     </x-form.select>
 
-    <x-form.select label="Jam Ke-" name="jam_ke" :selected="old('jam_ke', $jadwal->jam_ke ?? '')" required :placeholder="false">
+    <x-form.select label="Jam Ke-" name="jam_ke" x-model="selectedJamKe" @change="onJamKeChange()" :selected="old('jam_ke', $jadwal->jam_ke ?? '')" required :placeholder="false">
         <option value="">-- Pilih Jam Pelajaran (1 s.d 4) --</option>
         @foreach ([1 => 'Jam ke-1', 2 => 'Jam ke-2', 3 => 'Jam ke-3', 4 => 'Jam ke-4'] as $jVal => $jLbl)
             <option value="{{ $jVal }}" @selected((int) old('jam_ke', $jadwal->jam_ke ?? 0) === $jVal)>{{ $jLbl }}</option>
@@ -77,11 +122,13 @@
 
     <x-form.input label="Ruangan" name="ruangan" x-model="ruangan" :value="$jadwal->ruangan ?? ''" placeholder="Contoh: R-1-MI" hint="Otomatis mengikuti 1 ruangan tetap milik kelas yang dipilih." />
 
-    <x-form.input label="Jam Mulai" name="jam_mulai" type="time"
-        :value="isset($jadwal) ? \Illuminate\Support\Str::substr($jadwal->jam_mulai, 0, 5) : old('jam_mulai', '07:30')" required />
+    <x-form.input label="Jam Mulai" name="jam_mulai" type="time" x-model="jamMulai"
+        :value="isset($jadwal) ? \Illuminate\Support\Str::substr($jadwal->jam_mulai, 0, 5) : old('jam_mulai')"
+        hint="Otomatis terisi saat memilih Jam Ke-, dapat disesuaikan manual." required />
 
-    <x-form.input label="Jam Selesai" name="jam_selesai" type="time"
-        :value="isset($jadwal) ? \Illuminate\Support\Str::substr($jadwal->jam_selesai, 0, 5) : old('jam_selesai', '08:40')" required />
+    <x-form.input label="Jam Selesai" name="jam_selesai" type="time" x-model="jamSelesai"
+        :value="isset($jadwal) ? \Illuminate\Support\Str::substr($jadwal->jam_selesai, 0, 5) : old('jam_selesai')"
+        hint="Otomatis terisi saat memilih Jam Ke-, dapat disesuaikan manual." required />
 
     @php
         $defaultTahunAjaran = old('tahun_ajaran', $jadwal->tahun_ajaran ?? App\Models\Konfigurasi::tahunAjaranAktif());
