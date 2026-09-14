@@ -2,7 +2,14 @@
     x-data="{
         selectedKelas: '{{ old('kelas_id', $jadwal->kelas_id ?? '') }}',
         selectedMapel: '{{ old('mapel_id', $jadwal->mapel_id ?? '') }}',
+        ruangan: '{{ old('ruangan', $jadwal->ruangan ?? '') }}',
         mapelByKelas: {{ json_encode($mapelByKelas ?? []) }},
+        kelasRuangan: {{ json_encode($kelas->pluck('ruangan', 'id') ?? []) }},
+        init() {
+            if (this.selectedKelas && !this.ruangan && this.kelasRuangan[this.selectedKelas]) {
+                this.ruangan = this.kelasRuangan[this.selectedKelas];
+            }
+        },
         get availableMapels() {
             if (!this.selectedKelas) return [];
             return this.mapelByKelas[this.selectedKelas] || [];
@@ -11,6 +18,9 @@
             const availableIds = this.availableMapels.map(m => String(m.id));
             if (this.selectedMapel && !availableIds.includes(String(this.selectedMapel))) {
                 this.selectedMapel = '';
+            }
+            if (this.selectedKelas && this.kelasRuangan[this.selectedKelas]) {
+                this.ruangan = this.kelasRuangan[this.selectedKelas];
             }
         }
     }">
@@ -65,7 +75,7 @@
         @endforeach
     </x-form.select>
 
-    <x-form.input label="Ruangan" name="ruangan" :value="$jadwal->ruangan ?? ''" placeholder="Contoh: R-1-MI" />
+    <x-form.input label="Ruangan" name="ruangan" x-model="ruangan" :value="$jadwal->ruangan ?? ''" placeholder="Contoh: R-1-MI" hint="Otomatis mengikuti 1 ruangan tetap milik kelas yang dipilih." />
 
     <x-form.input label="Jam Mulai" name="jam_mulai" type="time"
         :value="isset($jadwal) ? \Illuminate\Support\Str::substr($jadwal->jam_mulai, 0, 5) : old('jam_mulai', '07:30')" required />

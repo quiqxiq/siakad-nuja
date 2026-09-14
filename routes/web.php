@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\AbsensiController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GuruController;
@@ -28,6 +29,13 @@ Route::get('/', function () {
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [LoginController::class, 'login'])->name('login.attempt');
+
+    // Lupa Password via WhatsApp OTP
+    Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendOtp'])->name('password.send_otp');
+    Route::get('/forgot-password/verify', [ForgotPasswordController::class, 'showVerifyForm'])->name('password.verify_form');
+    Route::post('/forgot-password/verify', [ForgotPasswordController::class, 'verifyAndReset'])->name('password.reset_attempt');
+    Route::post('/forgot-password/resend', [ForgotPasswordController::class, 'resendOtp'])->name('password.resend_otp');
 });
 
 Route::middleware('auth')->group(function (): void {

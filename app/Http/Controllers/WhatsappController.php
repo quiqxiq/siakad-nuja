@@ -5,11 +5,17 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\ChatbotLog;
+use App\Models\ChatbotRule;
+use App\Models\ChatbotSession;
 use App\Models\Konfigurasi;
 use App\Models\NotifikasiWhatsapp;
 use App\Services\WhatsappGatewayService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Kstmostofa\LaravelWhatsApp\Facades\WhatsApp;
 
 class WhatsappController extends Controller
 {
@@ -20,8 +26,8 @@ class WhatsappController extends Controller
      */
     public function index(): View
     {
-        $status      = $this->gateway->getStatus();
-        $qrUrl       = null;
+        $status = $this->gateway->getStatus();
+        $qrUrl = null;
         $pairingCode = session('pairing_code') ?? ($status['code'] ?? null);
 
         // Jika belum login, siapkan QR URL & Pairing Code jika ada
@@ -32,9 +38,9 @@ class WhatsappController extends Controller
             }
         }
 
-        $totalNotif  = NotifikasiWhatsapp::count();
-        $totalGagal  = NotifikasiWhatsapp::where('status', 'gagal')->count();
-        $totalSesi   = \App\Models\ChatbotSession::count();
+        $totalNotif = NotifikasiWhatsapp::count();
+        $totalGagal = NotifikasiWhatsapp::where('status', 'gagal')->count();
+        $totalSesi = ChatbotSession::count();
 
         return view('whatsapp.index', compact('status', 'qrUrl', 'pairingCode', 'totalNotif', 'totalGagal', 'totalSesi'));
     }
@@ -42,11 +48,11 @@ class WhatsappController extends Controller
     /**
      * AJAX endpoint — cek status koneksi WhatsApp (polling dari frontend)
      */
-    public function statusAjax(): \Illuminate\Http\JsonResponse
+    public function statusAjax(): JsonResponse
     {
         $status = $this->gateway->getStatus();
-        $qrUrl  = null;
-        $code   = $status['code'] ?? null;
+        $qrUrl = null;
+        $code = $status['code'] ?? null;
 
         if (in_array($status['status'] ?? '', ['SCAN_QR', 'DISCONNECTED', 'PAIRING_CODE'])) {
             $qrUrl = $this->gateway->getQrCode();
@@ -57,21 +63,21 @@ class WhatsappController extends Controller
 
         return response()->json([
             'status' => $status,
-            'qr'     => $qrUrl,
-            'code'   => $code,
+            'qr' => $qrUrl,
+            'code' => $code,
         ]);
     }
 
     /**
      * Request WhatsApp Pairing Code dengan nomor HP
      */
-    public function pairingCode(Request $request): \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+    public function pairingCode(Request $request): JsonResponse|RedirectResponse
     {
         $request->validate([
             'no_hp' => 'required|string|min:8|max:25',
         ], [
             'no_hp.required' => 'Nomor WhatsApp wajib diisi.',
-            'no_hp.min'      => 'Nomor WhatsApp terlalu pendek.',
+            'no_hp.min' => 'Nomor WhatsApp terlalu pendek.',
         ]);
 
         $result = $this->gateway->requestPairingCode((string) $request->input('no_hp'));
@@ -93,11 +99,11 @@ class WhatsappController extends Controller
     /**
      * Trigger QR login via laravel-whatsapp sidecar
      */
-    public function login(): \Illuminate\Http\RedirectResponse
+    public function login(): RedirectResponse
     {
         try {
-            if (class_exists(\Kstmostofa\LaravelWhatsApp\Facades\WhatsApp::class)) {
-                \Kstmostofa\LaravelWhatsApp\Facades\WhatsApp::web('main')->start();
+            if (class_exists(WhatsApp::class)) {
+                WhatsApp::web('main')->start();
             }
 
             $qrUrl = $this->gateway->getQrCode();
@@ -108,14 +114,14 @@ class WhatsappController extends Controller
 
             return redirect()->route('whatsapp.index')->with('success', 'Sesi WhatsApp sedang menginisialisasi. QR Code akan dimuat otomatis.');
         } catch (\Exception $e) {
-            return redirect()->route('whatsapp.index')->with('error', 'Gagal memuat QR Code. Pastikan service sidecar aktif (php artisan whatsapp:sidecar:start): ' . $e->getMessage());
+            return redirect()->route('whatsapp.index')->with('error', 'Gagal memuat QR Code. Pastikan service sidecar aktif (php artisan whatsapp:sidecar:start): '.$e->getMessage());
         }
     }
 
     /**
      * Logout device dari WhatsApp via laravel-whatsapp sidecar
      */
-    public function logout(): \Illuminate\Http\RedirectResponse
+    public function logout(): RedirectResponse
     {
         $success = $this->gateway->logout();
 
@@ -128,7 +134,7 @@ class WhatsappController extends Controller
     /**
      * Reconnect device ke WhatsApp via laravel-whatsapp sidecar
      */
-    public function reconnect(): \Illuminate\Http\RedirectResponse
+    public function reconnect(): RedirectResponse
     {
         $success = $this->gateway->reconnect();
 
@@ -145,38 +151,43 @@ class WhatsappController extends Controller
     {
         $templateDefinitions = [
             'template_absensi' => [
-                'label'   => 'Notifikasi Absensi & Kehadiran',
-                'hint'    => 'Variabel: {nama_wali}, {nama_siswa}, {kelas}, {status}, {hari}, {tanggal}, {keterangan}',
+                'label' => 'Notifikasi Absensi & Kehadiran',
+                'hint' => 'Variabel: {nama_wali}, {nama_siswa}, {kelas}, {status}, {hari}, {tanggal}, {keterangan}',
                 'default' => "🔔 *Notifikasi Kehadiran*\nYth. Bpk/Ibu {nama_wali},\n\nAnanda *{nama_siswa}* ({kelas}) tercatat *{status}* pada hari {hari}, {tanggal}.\n\n— SIAKAD Nurul Jadid Karduluk",
             ],
             'template_nilai' => [
-                'label'   => 'Notifikasi Nilai Rapor Baru',
-                'hint'    => 'Variabel: {nama_wali}, {nama_siswa}, {kelas}, {mapel}, {nilai_harian}, {nilai_uts}, {nilai_uas}, {nilai_akhir}, {predikat}',
+                'label' => 'Notifikasi Nilai Rapor Baru',
+                'hint' => 'Variabel: {nama_wali}, {nama_siswa}, {kelas}, {mapel}, {nilai_harian}, {nilai_uts}, {nilai_uas}, {nilai_akhir}, {predikat}',
                 'default' => "📊 *Notifikasi Nilai Baru*\nYth. Bpk/Ibu {nama_wali},\n\nNilai *{mapel}* Ananda *{nama_siswa}* telah diinput:\n• Tugas  : {nilai_harian}\n• UTS    : {nilai_uts}\n• UAS    : {nilai_uas}\n• *Nilai Akhir : {nilai_akhir} ({predikat})*\n\n— SIAKAD Nurul Jadid Karduluk",
             ],
             'template_tagihan' => [
-                'label'   => 'Notifikasi Tagihan Pembayaran',
-                'hint'    => 'Variabel: {nama_wali}, {nama_siswa}, {nama_tagihan}, {nominal}',
+                'label' => 'Notifikasi Tagihan Pembayaran',
+                'hint' => 'Variabel: {nama_wali}, {nama_siswa}, {nama_tagihan}, {nominal}',
                 'default' => "💳 *Notifikasi Tagihan*\nYth. Bpk/Ibu {nama_wali},\n\nTagihan baru untuk Ananda *{nama_siswa}*:\n• Nama   : {nama_tagihan}\n• Nominal: Rp {nominal}\n\nMohon untuk segera melakukan pembayaran.\n\n— SIAKAD Nurul Jadid Karduluk",
             ],
             'template_pengumuman' => [
-                'label'   => 'Notifikasi Broadcast Pengumuman',
-                'hint'    => 'Variabel: {judul}, {isi}, {tanggal}',
+                'label' => 'Notifikasi Broadcast Pengumuman',
+                'hint' => 'Variabel: {judul}, {isi}, {tanggal}',
                 'default' => "📢 *Pengumuman Sekolah*\n*{judul}*\n\n{isi}\n\n— SIAKAD Nurul Jadid Karduluk",
             ],
             'template_kuitansi' => [
-                'label'   => 'Notifikasi Pembayaran Lunas (Kuitansi)',
-                'hint'    => 'Variabel: {nama_wali}, {nama_siswa}, {nama_tagihan}, {nominal}, {tanggal_bayar}',
+                'label' => 'Notifikasi Pembayaran Lunas (Kuitansi)',
+                'hint' => 'Variabel: {nama_wali}, {nama_siswa}, {nama_tagihan}, {nominal}, {tanggal_bayar}',
                 'default' => "✅ *Pembayaran Berhasil*\nYth. Bpk/Ibu {nama_wali},\n\nPembayaran *{nama_tagihan}* Ananda *{nama_siswa}* sebesar *Rp {nominal}* pada {tanggal_bayar} telah dikonfirmasi LUNAS.\n\nTerima kasih! 🙏\n\n— SIAKAD Nurul Jadid Karduluk",
             ],
             'template_teguran' => [
-                'label'   => 'Notifikasi Teguran & Peringatan Wali',
-                'hint'    => 'Variabel: {nama_wali}, {nama_siswa}, {keterangan}, {tanggal}',
+                'label' => 'Notifikasi Teguran & Peringatan Wali',
+                'hint' => 'Variabel: {nama_wali}, {nama_siswa}, {keterangan}, {tanggal}',
                 'default' => "⚠️ *Pemberitahuan Teguran Sekolah*\nYth. Bpk/Ibu {nama_wali},\n\nDisampaikan mengenai Ananda *{nama_siswa}*:\n{keterangan}\n\nTanggal: {tanggal}\n\nMohon kerjasamanya untuk perhatian Bpk/Ibu.\n\n— SIAKAD Nurul Jadid Karduluk",
             ],
+            'template_otp' => [
+                'label' => 'Notifikasi Kode OTP Reset Password',
+                'hint' => 'Variabel: {nama}, {otp}',
+                'default' => "🔐 *Kode OTP Reset Password*\n\nHalo *{nama}*,\n\nKode OTP Anda untuk mengatur ulang password SIAKAD NUJA adalah:\n*{otp}*\n\nKode ini bersifat rahasia dan berlaku selama 10 menit. Jangan berikan kode ini kepada siapapun demi keamanan akun Anda.\n\n— SIAKAD Nurul Jadid Karduluk",
+            ],
             'cs_whatsapp' => [
-                'label'   => 'Nomor Customer Service / Admin WA',
-                'hint'    => 'Nomor WhatsApp admin yang akan ditampilkan pada menu chatbot CS (contoh: 081234567890)',
+                'label' => 'Nomor Customer Service / Admin WA',
+                'hint' => 'Nomor WhatsApp admin yang akan ditampilkan pada menu chatbot CS (contoh: 081234567890)',
                 'default' => '081234567890',
             ],
         ];
@@ -184,9 +195,9 @@ class WhatsappController extends Controller
         $templates = [];
         foreach ($templateDefinitions as $key => $def) {
             $templates[$key] = [
-                'key'   => $key,
+                'key' => $key,
                 'label' => $def['label'],
-                'hint'  => $def['hint'],
+                'hint' => $def['hint'],
                 'value' => Konfigurasi::get($key, $def['default']),
             ];
         }
@@ -206,9 +217,9 @@ class WhatsappController extends Controller
 
         $def = $all[$key];
         $template = [
-            'key'   => $key,
+            'key' => $key,
             'label' => $def['label'],
-            'hint'  => $def['hint'],
+            'hint' => $def['hint'],
             'value' => Konfigurasi::get($key, $def['default']),
         ];
 
@@ -218,7 +229,7 @@ class WhatsappController extends Controller
     /**
      * Update template tunggal
      */
-    public function updateSingleTemplate(string $key, Request $request): \Illuminate\Http\RedirectResponse
+    public function updateSingleTemplate(string $key, Request $request): RedirectResponse
     {
         $request->validate([
             'value' => 'required|string',
@@ -232,9 +243,9 @@ class WhatsappController extends Controller
     /**
      * Simpan semua template
      */
-    public function updateTemplates(Request $request): \Illuminate\Http\RedirectResponse
+    public function updateTemplates(Request $request): RedirectResponse
     {
-        $keys = ['template_absensi', 'template_nilai', 'template_tagihan', 'template_pengumuman', 'template_kuitansi', 'template_teguran', 'cs_whatsapp'];
+        $keys = ['template_absensi', 'template_nilai', 'template_tagihan', 'template_pengumuman', 'template_kuitansi', 'template_teguran', 'template_otp', 'cs_whatsapp'];
 
         foreach ($keys as $key) {
             if ($request->has($key)) {
@@ -249,38 +260,43 @@ class WhatsappController extends Controller
     {
         return [
             'template_absensi' => [
-                'label'   => 'Notifikasi Absensi & Kehadiran',
-                'hint'    => 'Variabel: {nama_wali}, {nama_siswa}, {kelas}, {status}, {hari}, {tanggal}, {keterangan}',
+                'label' => 'Notifikasi Absensi & Kehadiran',
+                'hint' => 'Variabel: {nama_wali}, {nama_siswa}, {kelas}, {status}, {hari}, {tanggal}, {keterangan}',
                 'default' => "🔔 *Notifikasi Kehadiran*\nYth. Bpk/Ibu {nama_wali},\n\nAnanda *{nama_siswa}* ({kelas}) tercatat *{status}* pada hari {hari}, {tanggal}.\n\n— SIAKAD Nurul Jadid Karduluk",
             ],
             'template_nilai' => [
-                'label'   => 'Notifikasi Nilai Rapor Baru',
-                'hint'    => 'Variabel: {nama_wali}, {nama_siswa}, {kelas}, {mapel}, {nilai_harian}, {nilai_uts}, {nilai_uas}, {nilai_akhir}, {predikat}',
+                'label' => 'Notifikasi Nilai Rapor Baru',
+                'hint' => 'Variabel: {nama_wali}, {nama_siswa}, {kelas}, {mapel}, {nilai_harian}, {nilai_uts}, {nilai_uas}, {nilai_akhir}, {predikat}',
                 'default' => "📊 *Notifikasi Nilai Baru*\nYth. Bpk/Ibu {nama_wali},\n\nNilai *{mapel}* Ananda *{nama_siswa}* telah diinput:\n• Tugas  : {nilai_harian}\n• UTS    : {nilai_uts}\n• UAS    : {nilai_uas}\n• *Nilai Akhir : {nilai_akhir} ({predikat})*\n\n— SIAKAD Nurul Jadid Karduluk",
             ],
             'template_tagihan' => [
-                'label'   => 'Notifikasi Tagihan Pembayaran',
-                'hint'    => 'Variabel: {nama_wali}, {nama_siswa}, {nama_tagihan}, {nominal}',
+                'label' => 'Notifikasi Tagihan Pembayaran',
+                'hint' => 'Variabel: {nama_wali}, {nama_siswa}, {nama_tagihan}, {nominal}',
                 'default' => "💳 *Notifikasi Tagihan*\nYth. Bpk/Ibu {nama_wali},\n\nTagihan baru untuk Ananda *{nama_siswa}*:\n• Nama   : {nama_tagihan}\n• Nominal: Rp {nominal}\n\nMohon untuk segera melakukan pembayaran.\n\n— SIAKAD Nurul Jadid Karduluk",
             ],
             'template_pengumuman' => [
-                'label'   => 'Notifikasi Broadcast Pengumuman',
-                'hint'    => 'Variabel: {judul}, {isi}, {tanggal}',
+                'label' => 'Notifikasi Broadcast Pengumuman',
+                'hint' => 'Variabel: {judul}, {isi}, {tanggal}',
                 'default' => "📢 *Pengumuman Sekolah*\n*{judul}*\n\n{isi}\n\n— SIAKAD Nurul Jadid Karduluk",
             ],
             'template_kuitansi' => [
-                'label'   => 'Notifikasi Pembayaran Lunas (Kuitansi)',
-                'hint'    => 'Variabel: {nama_wali}, {nama_siswa}, {nama_tagihan}, {nominal}, {tanggal_bayar}',
+                'label' => 'Notifikasi Pembayaran Lunas (Kuitansi)',
+                'hint' => 'Variabel: {nama_wali}, {nama_siswa}, {nama_tagihan}, {nominal}, {tanggal_bayar}',
                 'default' => "✅ *Pembayaran Berhasil*\nYth. Bpk/Ibu {nama_wali},\n\nPembayaran *{nama_tagihan}* Ananda *{nama_siswa}* sebesar *Rp {nominal}* pada {tanggal_bayar} telah dikonfirmasi LUNAS.\n\nTerima kasih! 🙏\n\n— SIAKAD Nurul Jadid Karduluk",
             ],
             'template_teguran' => [
-                'label'   => 'Notifikasi Teguran & Peringatan Wali',
-                'hint'    => 'Variabel: {nama_wali}, {nama_siswa}, {keterangan}, {tanggal}',
+                'label' => 'Notifikasi Teguran & Peringatan Wali',
+                'hint' => 'Variabel: {nama_wali}, {nama_siswa}, {keterangan}, {tanggal}',
                 'default' => "⚠️ *Pemberitahuan Teguran Sekolah*\nYth. Bpk/Ibu {nama_wali},\n\nDisampaikan mengenai Ananda *{nama_siswa}*:\n{keterangan}\n\nTanggal: {tanggal}\n\nMohon kerjasamanya untuk perhatian Bpk/Ibu.\n\n— SIAKAD Nurul Jadid Karduluk",
             ],
+            'template_otp' => [
+                'label' => 'Notifikasi Kode OTP Reset Password',
+                'hint' => 'Variabel: {nama}, {otp}',
+                'default' => "🔐 *Kode OTP Reset Password*\n\nHalo *{nama}*,\n\nKode OTP Anda untuk mengatur ulang password SIAKAD NUJA adalah:\n*{otp}*\n\nKode ini bersifat rahasia dan berlaku selama 10 menit. Jangan berikan kode ini kepada siapapun demi keamanan akun Anda.\n\n— SIAKAD Nurul Jadid Karduluk",
+            ],
             'cs_whatsapp' => [
-                'label'   => 'Nomor Customer Service / Admin WA',
-                'hint'    => 'Nomor WhatsApp admin yang akan ditampilkan pada menu chatbot CS (contoh: 081234567890)',
+                'label' => 'Nomor Customer Service / Admin WA',
+                'hint' => 'Nomor WhatsApp admin yang akan ditampilkan pada menu chatbot CS (contoh: 081234567890)',
                 'default' => '081234567890',
             ],
         ];
@@ -309,7 +325,7 @@ class WhatsappController extends Controller
     /**
      * Kirim ulang notifikasi yang gagal
      */
-    public function resend(NotifikasiWhatsapp $notifikasi): \Illuminate\Http\RedirectResponse
+    public function resend(NotifikasiWhatsapp $notifikasi): RedirectResponse
     {
         $success = $this->gateway->resendNotification($notifikasi);
 
@@ -327,7 +343,7 @@ class WhatsappController extends Controller
         $query = ChatbotLog::with('siswa')->orderBy('id', 'desc');
 
         if ($request->filled('no_hp')) {
-            $query->where('no_hp', 'like', '%' . $request->no_hp . '%');
+            $query->where('no_hp', 'like', '%'.$request->no_hp.'%');
         }
 
         $logs = $query->paginate(30)->withQueryString();
@@ -340,14 +356,14 @@ class WhatsappController extends Controller
      */
     public function chatbotRules(): View
     {
-        $rules = \App\Models\ChatbotRule::when(request('q'), function ($query, string $q): void {
+        $rules = ChatbotRule::when(request('q'), function ($query, string $q): void {
             $query->where('keyword', 'like', "%{$q}%")
                 ->orWhere('judul_menu', 'like', "%{$q}%");
         })
-        ->orderBy('urutan')
-        ->orderBy('id')
-        ->paginate(15)
-        ->withQueryString();
+            ->orderBy('urutan')
+            ->orderBy('id')
+            ->paginate(15)
+            ->withQueryString();
 
         return view('whatsapp.rules.index', compact('rules'));
     }
@@ -357,40 +373,40 @@ class WhatsappController extends Controller
         return view('whatsapp.rules.create');
     }
 
-    public function storeChatbotRule(Request $request): \Illuminate\Http\RedirectResponse
+    public function storeChatbotRule(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'keyword'     => ['required', 'string', 'max:50', 'unique:chatbot_rules,keyword'],
-            'judul_menu'  => ['required', 'string', 'max:150'],
+            'keyword' => ['required', 'string', 'max:50', 'unique:chatbot_rules,keyword'],
+            'judul_menu' => ['required', 'string', 'max:150'],
             'tipe_action' => ['required', 'in:system_query,static_text'],
-            'action_key'  => ['nullable', 'required_if:tipe_action,system_query', 'string', 'max:50'],
+            'action_key' => ['nullable', 'required_if:tipe_action,system_query', 'string', 'max:50'],
             'isi_balasan' => ['nullable', 'required_if:tipe_action,static_text', 'string'],
-            'urutan'      => ['required', 'integer', 'min:0'],
-            'is_active'   => ['nullable', 'boolean'],
+            'urutan' => ['required', 'integer', 'min:0'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', true);
 
-        \App\Models\ChatbotRule::create($validated);
+        ChatbotRule::create($validated);
 
         return redirect()->route('whatsapp.chatbot-rules')->with('success', 'Rule chatbot berhasil ditambahkan.');
     }
 
-    public function editChatbotRule(\App\Models\ChatbotRule $rule): View
+    public function editChatbotRule(ChatbotRule $rule): View
     {
         return view('whatsapp.rules.edit', compact('rule'));
     }
 
-    public function updateChatbotRule(Request $request, \App\Models\ChatbotRule $rule): \Illuminate\Http\RedirectResponse
+    public function updateChatbotRule(Request $request, ChatbotRule $rule): RedirectResponse
     {
         $validated = $request->validate([
-            'keyword'     => ['required', 'string', 'max:50', \Illuminate\Validation\Rule::unique('chatbot_rules', 'keyword')->ignore($rule->id)],
-            'judul_menu'  => ['required', 'string', 'max:150'],
+            'keyword' => ['required', 'string', 'max:50', Rule::unique('chatbot_rules', 'keyword')->ignore($rule->id)],
+            'judul_menu' => ['required', 'string', 'max:150'],
             'tipe_action' => ['required', 'in:system_query,static_text'],
-            'action_key'  => ['nullable', 'required_if:tipe_action,system_query', 'string', 'max:50'],
+            'action_key' => ['nullable', 'required_if:tipe_action,system_query', 'string', 'max:50'],
             'isi_balasan' => ['nullable', 'required_if:tipe_action,static_text', 'string'],
-            'urutan'      => ['required', 'integer', 'min:0'],
-            'is_active'   => ['nullable', 'boolean'],
+            'urutan' => ['required', 'integer', 'min:0'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
         $validated['is_active'] = $request->boolean('is_active');
@@ -400,7 +416,7 @@ class WhatsappController extends Controller
         return redirect()->route('whatsapp.chatbot-rules')->with('success', 'Rule chatbot berhasil diperbarui.');
     }
 
-    public function destroyChatbotRule(\App\Models\ChatbotRule $rule): \Illuminate\Http\RedirectResponse
+    public function destroyChatbotRule(ChatbotRule $rule): RedirectResponse
     {
         $rule->delete();
 

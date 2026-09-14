@@ -39,6 +39,14 @@ class KelasRequest extends FormRequest
             ],
             'wali_kelas_id' => ['nullable', 'exists:guru,id'],
             'kapasitas' => ['nullable', 'integer', 'min:1', 'max:255'],
+            'ruangan' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('kelas', 'ruangan')
+                    ->where(fn ($query) => $query->where('tahun_ajaran', $this->input('tahun_ajaran') ?? $this->route('kela')?->tahun_ajaran))
+                    ->ignore($this->route('kela')),
+            ],
         ];
     }
 
@@ -46,6 +54,7 @@ class KelasRequest extends FormRequest
     {
         return [
             'tahun_ajaran.regex' => 'Format tahun ajaran harus YYYY/YYYY (contoh: 2026/2027).',
+            'ruangan.unique' => 'Ruangan ini sudah digunakan oleh kelas lain pada tahun ajaran yang sama. 1 ruangan hanya untuk 1 kelas.',
         ];
     }
 
@@ -58,6 +67,7 @@ class KelasRequest extends FormRequest
             'nama_kelas' => 'nama kelas',
             'tahun_ajaran' => 'tahun ajaran',
             'wali_kelas_id' => 'wali kelas',
+            'ruangan' => 'ruangan kelas',
         ];
     }
 }

@@ -28,7 +28,7 @@ if [ -d "/var/www/html/vendor/kstmostofa/laravel-whatsapp/sidecar/node_modules" 
                   /var/www/html/vendor/kstmostofa/laravel-whatsapp/sidecar/sessions/*/Default/Singleton* \
                   /var/www/html/vendor/kstmostofa/laravel-whatsapp/sidecar/sessions/*/DevToolsActivePort 2>/dev/null || true
 
-            HOST=127.0.0.1 PORT=3000 TOKEN="${WHATSAPP_WEB_TOKEN:-siakad-nuja-secret-token}" PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+            HOST=127.0.0.1 PORT=3000 TOKEN="${WHATSAPP_WEB_TOKEN:-siakad_nuja_wa_sidecar_secret_token_2026}" PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
             node index.js >> /var/www/html/storage/logs/whatsapp-sidecar.log 2>> /var/www/html/storage/logs/whatsapp-sidecar.err.log || true
             sleep 2
         done

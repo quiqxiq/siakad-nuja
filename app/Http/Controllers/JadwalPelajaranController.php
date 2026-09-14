@@ -29,9 +29,9 @@ class JadwalPelajaranController extends Controller
             ->when(request('search'), function ($query, $search): void {
                 $query->where(function ($q) use ($search): void {
                     $q->whereHas('mapel', fn ($sub) => $sub->where('nama_mapel', 'like', "%{$search}%"))
-                      ->orWhereHas('kelas', fn ($sub) => $sub->where('nama_kelas', 'like', "%{$search}%")->orWhere('jenjang', 'like', "%{$search}%"))
-                      ->orWhereHas('guru', fn ($sub) => $sub->where('nama_lengkap', 'like', "%{$search}%"))
-                      ->orWhere('ruangan', 'like', "%{$search}%");
+                        ->orWhereHas('kelas', fn ($sub) => $sub->where('nama_kelas', 'like', "%{$search}%")->orWhere('jenjang', 'like', "%{$search}%"))
+                        ->orWhereHas('guru', fn ($sub) => $sub->where('nama_lengkap', 'like', "%{$search}%"))
+                        ->orWhere('ruangan', 'like', "%{$search}%");
                 });
             })
             ->when(request('kelas_id'), fn ($query, $id) => $query->where('kelas_id', $id))
@@ -60,7 +60,15 @@ class JadwalPelajaranController extends Controller
 
     public function store(JadwalPelajaranRequest $request): RedirectResponse
     {
-        JadwalPelajaran::create($request->validated());
+        $data = $request->validated();
+        if (empty($data['ruangan']) && ! empty($data['kelas_id'])) {
+            $kelas = Kelas::find($data['kelas_id']);
+            if ($kelas && $kelas->ruangan) {
+                $data['ruangan'] = $kelas->ruangan;
+            }
+        }
+
+        JadwalPelajaran::create($data);
 
         return redirect()->route('jadwal.index')->with('success', 'Jadwal berhasil ditambahkan.');
     }
@@ -79,7 +87,15 @@ class JadwalPelajaranController extends Controller
 
     public function update(JadwalPelajaranRequest $request, JadwalPelajaran $jadwal): RedirectResponse
     {
-        $jadwal->update($request->validated());
+        $data = $request->validated();
+        if (empty($data['ruangan']) && ! empty($data['kelas_id'])) {
+            $kelas = Kelas::find($data['kelas_id']);
+            if ($kelas && $kelas->ruangan) {
+                $data['ruangan'] = $kelas->ruangan;
+            }
+        }
+
+        $jadwal->update($data);
 
         return redirect()->route('jadwal.index')->with('success', 'Jadwal berhasil diperbarui.');
     }

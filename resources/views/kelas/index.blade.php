@@ -23,12 +23,13 @@
     @if ($kelas->count())
         {{-- Desktop --}}
         <div class="hidden md:block">
-            <x-table :headers="['Kelas', 'Tingkat', 'Jenjang', 'Wali Kelas', 'Siswa', 'T.A.', 'Aksi']">
+            <x-table :headers="['Kelas', 'Tingkat', 'Jenjang', 'Ruangan', 'Wali Kelas', 'Siswa', 'T.A.', 'Aksi']">
                 @foreach ($kelas as $k)
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/40">
                         <td class="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white whitespace-nowrap">{{ $k->nama_lengkap }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $k->tingkat }}</td>
                         <td class="px-4 py-3 whitespace-nowrap"><x-badge variant="info">{{ $k->jenjang }}</x-badge></td>
+                        <td class="px-4 py-3 text-sm font-semibold text-brand-600 dark:text-brand-400 whitespace-nowrap">{{ $k->ruangan ?? '-' }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $k->waliKelas->nama_lengkap ?? '-' }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $k->siswa_count }}/{{ $k->kapasitas ?? '-' }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-300 whitespace-nowrap">{{ $k->tahun_ajaran }}</td>
@@ -63,6 +64,7 @@
                         </div>
                     </div>
                     <dl class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                        <div><dt class="text-xs text-slate-400">Ruangan</dt><dd class="text-slate-700 dark:text-slate-300 font-medium text-brand-600 dark:text-brand-400">{{ $k->ruangan ?? '-' }}</dd></div>
                         <div><dt class="text-xs text-slate-400">Wali Kelas</dt><dd class="text-slate-700 dark:text-slate-300">{{ $k->waliKelas->nama_lengkap ?? '-' }}</dd></div>
                         <div><dt class="text-xs text-slate-400">Siswa</dt><dd class="text-slate-700 dark:text-slate-300">{{ $k->siswa_count }}/{{ $k->kapasitas ?? '-' }}</dd></div>
                         <div><dt class="text-xs text-slate-400">T.A.</dt><dd class="text-slate-700 dark:text-slate-300">{{ $k->tahun_ajaran }}</dd></div>

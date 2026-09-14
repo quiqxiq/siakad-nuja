@@ -29,6 +29,9 @@
 
                 <div class="flex items-center justify-between">
                     <x-form.checkbox label="Ingat saya" name="remember" />
+                    <a href="{{ route('password.request') }}" class="text-xs font-medium text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300 transition">
+                        Lupa password?
+                    </a>
                 </div>
 
                 <x-button type="submit" variant="primary" class="w-full">

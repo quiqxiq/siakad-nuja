@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -25,7 +26,17 @@ class Kelas extends Model
         'tahun_ajaran',
         'wali_kelas_id',
         'kapasitas',
+        'ruangan',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $kelas): void {
+            if (empty($kelas->ruangan)) {
+                $kelas->ruangan = 'R-'.$kelas->nama_kelas.'-'.($kelas->jenjang ?: 'KLS');
+            }
+        });
+    }
 
     public function waliKelas(): BelongsTo
     {
@@ -56,15 +67,13 @@ class Kelas extends Model
     /**
      * Mengambil daftar mata pelajaran untuk suatu kelas (dan guru tertentu jika ada).
      *
-     * @param  int|Kelas  $kelas
-     * @param  Guru|null  $guru
      * @return Collection<int, MataPelajaran>
      */
     public static function getMapelsForKelas(int|self $kelas, ?Guru $guru = null): Collection
     {
         $kelasModel = $kelas instanceof self ? $kelas : self::find($kelas);
         if (! $kelasModel) {
-            return new Collection();
+            return new Collection;
         }
 
         if ($guru !== null) {
@@ -98,7 +107,6 @@ class Kelas extends Model
      * Mengembalikan pemetaan array kelas_id => daftar mata pelajaran untuk form cascading.
      *
      * @param  array<int, int>|null  $accessibleMapelIds
-     * @param  Guru|null  $guru
      * @return array<int, array<int, array<string, mixed>>>
      */
     public static function getMapelByKelasMapping(?array $accessibleMapelIds = null, ?Guru $guru = null): array
@@ -140,7 +148,7 @@ class Kelas extends Model
     /**
      * Scope query untuk membatasi kelas hanya pada yang dapat diakses user.
      */
-    public function scopeAccessibleBy(\Illuminate\Database\Eloquent\Builder $query, ?User $user): \Illuminate\Database\Eloquent\Builder
+    public function scopeAccessibleBy(Builder $query, ?User $user): Builder
     {
         if (! $user || $user->isAdmin()) {
             return $query;

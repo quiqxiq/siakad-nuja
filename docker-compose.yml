@@ -15,6 +15,7 @@ services:
       - DB_PASSWORD=siakad_secret
       - WHATSAPP_WEB_HOST=127.0.0.1
       - WHATSAPP_WEB_PORT=3000
+      - WHATSAPP_WEB_TOKEN=siakad_nuja_wa_sidecar_secret_token_2026
       - WHATSAPP_WEB_NODE_BINARY=/usr/bin/node
       - WHATSAPP_WEB_NPM_BINARY=/usr/bin/npm
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium

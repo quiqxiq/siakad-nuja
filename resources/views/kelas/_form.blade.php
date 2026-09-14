@@ -40,6 +40,8 @@
         emptyText="Tidak ada guru yang cocok dengan pencarian" />
 
     <x-form.input label="Kapasitas" name="kapasitas" type="number" min="1" max="255" step="1" placeholder="Contoh: 30" :value="$kelas->kapasitas ?? ''" onkeydown="if(['e','E','+','-','.'].includes(event.key)) event.preventDefault()" />
+
+    <x-form.input label="Ruangan Kelas" name="ruangan" :value="$kelas->ruangan ?? ''" placeholder="Contoh: R-1-MI" hint="1 ruangan khusus untuk 1 kelas (otomatis terisi jika dikosongkan)." />
 </div>
 
 <div class="flex items-center gap-3 pt-6">

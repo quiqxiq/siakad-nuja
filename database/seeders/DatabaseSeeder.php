@@ -188,6 +188,7 @@ class DatabaseSeeder extends Seeder
                     'tingkat' => (string) $k,
                     'wali_kelas_id' => $wali?->id,
                     'kapasitas' => 32,
+                    'ruangan' => 'R-' . $namaKelas . '-MI',
                 ]
             );
             $kelasMap["MI_{$namaKelas}"] = $kelas;
@@ -204,6 +205,7 @@ class DatabaseSeeder extends Seeder
                     'tingkat' => (string) $k,
                     'wali_kelas_id' => $wali?->id,
                     'kapasitas' => 32,
+                    'ruangan' => 'R-' . $namaKelas . '-MTs',
                 ]
             );
             $kelasMap["MTs_{$namaKelas}"] = $kelas;
@@ -360,7 +362,7 @@ class DatabaseSeeder extends Seeder
                 'jam_ke' => (int) $item['jam_ke'],
                 'jam_mulai' => $item['jam_mulai'],
                 'jam_selesai' => $item['jam_selesai'],
-                'ruangan' => 'R-' . $kelas->nama_kelas . '-' . $jenjang,
+                'ruangan' => $kelas->ruangan ?? ('R-' . $kelas->nama_kelas . '-' . $jenjang),
                 'tahun_ajaran' => self::TAHUN_AJARAN,
             ]);
 
