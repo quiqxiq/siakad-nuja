@@ -79,6 +79,55 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
+     * Normalisasi nama guru ke nama kanonikal baku.
+     */
+    public static function normalizeTeacherName(string $name): string
+    {
+        $map = [
+            'ABD. AZIS, S.Pd.I' => 'Abd. Azis, M.Pd.I',
+            'Abd. Azis, M.Pd.I' => 'Abd. Azis, M.Pd.I',
+            'ABD. KAFI, S.Pd.I' => 'Abd. Kafi, S.Pd.I',
+            'Abd. Kafi, S.Pd.I' => 'Abd. Kafi, S.Pd.I',
+            'ASWARI, S.Pd' => 'Aswari, S.Pd.',
+            'Aswari, S.Pd.' => 'Aswari, S.Pd.',
+            'BAIDI, S.Pd' => 'Baidi, S.Pd.',
+            'Baidi, S.Pd.' => 'Baidi, S.Pd.',
+            'FARHATIN, S.Pd.I' => 'Farhatin, S.Pd.I',
+            'Farhatin, S.Pd.I' => 'Farhatin, S.Pd.I',
+            'HASIB, S.Pd. I' => 'Hasib, S.Pd.I',
+            'HASIB, S.Pd.I' => 'Hasib, S.Pd.I',
+            'Hasib, S.Pd.I' => 'Hasib, S.Pd.I',
+            'K. ABUL HASAN, M.Ag' => 'K. Abul Hasan, S.Ag., M.Pd.I',
+            'K. ABUL HASAN, S.Ag' => 'K. Abul Hasan, S.Ag., M.Pd.I',
+            'K. Abul Hasan, S.Ag., M.Pd.I' => 'K. Abul Hasan, S.Ag., M.Pd.I',
+            'K. ABUL MA\'ARIF, S.Pd' => 'K. Abul Ma\'arif, S.Pd.I.',
+            'K. Abul Ma\'arif, S.Pd.I.' => 'K. Abul Ma\'arif, S.Pd.I.',
+            'K. ACH. JAZULI MAHDI, S.Kom' => 'K. Ach. Jazuli Mahdi, S.Kom',
+            'K. Ach. Jazuli Mahdi, S.Kom' => 'K. Ach. Jazuli Mahdi, S.Kom',
+            'KH. HASAN BASHRI' => 'KH. Hasan Basri',
+            'KH. Hasan Basri' => 'KH. Hasan Basri',
+            'KHAIRUNNAS, S.H' => 'Khairunnas, S.H.',
+            'Khairunnas, S.H.' => 'Khairunnas, S.H.',
+            'KHATIBI, S.Pd' => 'Khatibi, S.Pd',
+            'Khatibi, S.Pd' => 'Khatibi, S.Pd',
+            'MOH. ROFI\'IE, S.H' => 'Moh. Rofi\'ie, S.H',
+            'Moh. Rofi\'ie, S.H' => 'Moh. Rofi\'ie, S.H',
+            'MUHAMMAD QUDSI, S.Kom.I' => 'Muhammad Qudsi, S.Kom.I',
+            'Muhammad Qudsi, S.Kom.I' => 'Muhammad Qudsi, S.Kom.I',
+            'SAHARI' => 'Sahari',
+            'Sahari' => 'Sahari',
+            'SHADRIYANTO' => 'Shadriyanto',
+            'Shadriyanto' => 'Shadriyanto',
+            'WAHED, S.Kom.I' => 'Wahed, S.Kom.I',
+            'Wahed, S.Kom.I' => 'Wahed, S.Kom.I',
+            'ZAINIYAH, S.Pd' => 'Zainiyah, S.Pd',
+            'Zainiyah, S.Pd' => 'Zainiyah, S.Pd',
+        ];
+
+        return $map[trim($name)] ?? trim($name);
+    }
+
+    /**
      * @param  array<int, string>  $teacherNames
      * @return array<string, Guru>  [nama_guru => Guru]
      */
@@ -87,7 +136,17 @@ class DatabaseSeeder extends Seeder
         $guruMap = [];
         $jabatanList = ['Guru Mata Pelajaran', 'Guru & Wali Kelas', 'Guru Senior', 'Staf Pengajar'];
 
-        foreach ($teacherNames as $i => $nama) {
+        // Ambil nama kanonikal yang unik (28 guru)
+        $canonicalNames = [];
+        foreach ($teacherNames as $nama) {
+            $canonical = self::normalizeTeacherName($nama);
+            if (! in_array($canonical, $canonicalNames, true)) {
+                $canonicalNames[] = $canonical;
+            }
+        }
+        sort($canonicalNames);
+
+        foreach ($canonicalNames as $i => $nama) {
             $urut = $i + 1;
             $email = 'guru' . $urut . '@siakadnuja.sch.id';
 
@@ -113,6 +172,14 @@ class DatabaseSeeder extends Seeder
             );
 
             $guruMap[$nama] = $guru;
+        }
+
+        // Petakan variasi penulisan lama ke guru model yang sama
+        foreach ($teacherNames as $nama) {
+            $canonical = self::normalizeTeacherName($nama);
+            if (isset($guruMap[$canonical])) {
+                $guruMap[$nama] = $guruMap[$canonical];
+            }
         }
 
         return $guruMap;
@@ -175,12 +242,12 @@ class DatabaseSeeder extends Seeder
     private function seedKelas(array $guruMap): array
     {
         $kelasMap = [];
-        $guruList = array_values($guruMap);
+        $guruList = array_values(array_unique($guruMap, SORT_REGULAR));
 
         // MI: 1..6
         for ($k = 1; $k <= 6; $k++) {
             $namaKelas = (string) $k;
-            $wali = $guruList[($k - 1) % count($guruList)] ?? null;
+            $wali = $guruList[$k - 1] ?? null;
 
             $kelas = Kelas::firstOrCreate(
                 ['nama_kelas' => $namaKelas, 'jenjang' => 'MI', 'tahun_ajaran' => self::TAHUN_AJARAN],
@@ -197,7 +264,7 @@ class DatabaseSeeder extends Seeder
         // MTs: 7..9
         for ($k = 7; $k <= 9; $k++) {
             $namaKelas = (string) $k;
-            $wali = $guruList[($k + 5) % count($guruList)] ?? null;
+            $wali = $guruList[$k - 1] ?? null;
 
             $kelas = Kelas::firstOrCreate(
                 ['nama_kelas' => $namaKelas, 'jenjang' => 'MTs', 'tahun_ajaran' => self::TAHUN_AJARAN],
@@ -340,7 +407,7 @@ class DatabaseSeeder extends Seeder
 
             $kelas = $kelasMap[$kelasKey] ?? null;
             $mapel = $mapelMap[$mapelKey] ?? null;
-            $guru = $guruMap[$item['guru']] ?? null;
+            $guru = $guruMap[$item['guru']] ?? ($guruMap[self::normalizeTeacherName($item['guru'])] ?? null);
 
             if (! $kelas || ! $mapel) {
                 continue;
