@@ -44,7 +44,7 @@
         @endforeach
     </x-form.select>
 
-    <x-form.input label="Nomor WhatsApp" name="no_wa" type="tel" inputmode="numeric" :value="old('no_wa', $orangTua->no_wa ?? $orangTua->no_hp ?? '')" placeholder="08..." hint="Satu nomor utama untuk notifikasi &amp; chatbot WA" required />
+    <x-form.input label="Nomor WhatsApp" name="no_wa" type="tel" inputmode="numeric" pattern="[0-9+\s-]*" :value="old('no_wa', $orangTua->no_wa ?? $orangTua->no_hp ?? '')" placeholder="08..." hint="Satu nomor utama untuk notifikasi &amp; chatbot WA" required />
 
     <x-form.select label="Pekerjaan" name="pekerjaan" :selected="$currentPekerjaan">
         <option value="">— Pilih Pekerjaan —</option>

@@ -23,10 +23,15 @@ class AbsensiController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user();
+        $isGuru = $user?->isGuru();
+        $guru = $user?->guru;
+
+        $selectedKelasId = $request->filled('kelas_id') ? (int) $request->input('kelas_id') : null;
+        $selectedMapelId = $request->filled('mapel_id') ? (int) $request->input('mapel_id') : null;
 
         // Base query dengan otorisasi guru
         $baseQuery = Absensi::query()
-            ->when($user->isGuru(), function ($query) use ($user): void {
+            ->when($isGuru, function ($query) use ($user): void {
                 $jadwalIds = $this->jadwalIdsUntukGuru($user);
                 $query->whereIn('jadwal_id', $jadwalIds ?: [0]);
             });
@@ -39,6 +44,34 @@ class AbsensiController extends Controller
             'sakit' => (clone $baseQuery)->where('status', 'Sakit')->count(),
             'alpa'  => (clone $baseQuery)->where('status', 'Alpa')->count(),
         ];
+
+        // Dropdowns data
+        if ($isGuru) {
+            $guruJadwalIds = $this->jadwalIdsUntukGuru($user);
+            $teachingKelasIds = JadwalPelajaran::whereIn('id', $guruJadwalIds)->pluck('kelas_id')->unique()->values()->all();
+            $kelasList = Kelas::whereIn('id', $teachingKelasIds ?: [0])->orderBy('nama_kelas')->get();
+            $guruList = collect();
+            $allMapelList = MataPelajaran::whereIn('id', $guru?->teachingMapelIds() ?: [0])->orderBy('nama_mapel')->get(['id', 'nama_mapel']);
+        } else {
+            $kelasList = Kelas::orderBy('nama_kelas')->get();
+            $guruList = Guru::orderBy('nama_lengkap')->get();
+            $allMapelList = MataPelajaran::orderBy('nama_mapel')->get(['id', 'nama_mapel']);
+        }
+
+        $mapelByKelas = Kelas::getMapelByKelasMapping(guru: $isGuru ? $guru : null);
+
+        if ($selectedKelasId) {
+            $mapelList = Kelas::getMapelsForKelas($selectedKelasId, $isGuru ? $guru : null);
+            $validMapelIds = $mapelList->pluck('id')->all();
+            if ($selectedMapelId && ! in_array($selectedMapelId, $validMapelIds, true)) {
+                $selectedMapelId = null;
+                $request->merge(['mapel_id' => null]);
+            }
+        } else {
+            $mapelList = $isGuru
+                ? MataPelajaran::whereIn('id', $guru?->teachingMapelIds() ?: [0])->orderBy('nama_mapel')->get()
+                : MataPelajaran::orderBy('nama_mapel')->get();
+        }
 
         // Filtered query
         $absensi = (clone $baseQuery)
@@ -53,13 +86,11 @@ class AbsensiController extends Controller
                     ->orWhere('keterangan', 'like', $search);
                 });
             })
-            ->when($request->filled('kelas_id'), function ($q) use ($request): void {
-                $kelasId = $request->input('kelas_id');
-                $q->whereHas('jadwal', fn ($jq) => $jq->where('kelas_id', $kelasId));
+            ->when($selectedKelasId, function ($q) use ($selectedKelasId): void {
+                $q->whereHas('jadwal', fn ($jq) => $jq->where('kelas_id', $selectedKelasId));
             })
-            ->when($request->filled('mapel_id'), function ($q) use ($request): void {
-                $mapelId = $request->input('mapel_id');
-                $q->whereHas('jadwal', fn ($jq) => $jq->where('mapel_id', $mapelId));
+            ->when($selectedMapelId, function ($q) use ($selectedMapelId): void {
+                $q->whereHas('jadwal', fn ($jq) => $jq->where('mapel_id', $selectedMapelId));
             })
             ->when($request->filled('hari'), function ($q) use ($request): void {
                 $hari = $request->input('hari');
@@ -84,21 +115,6 @@ class AbsensiController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        // Dropdowns data
-        if ($user->isGuru()) {
-            $guruJadwalIds = $this->jadwalIdsUntukGuru($user);
-            $kelasIds = JadwalPelajaran::whereIn('id', $guruJadwalIds)->pluck('kelas_id');
-            $mapelIds = JadwalPelajaran::whereIn('id', $guruJadwalIds)->pluck('mapel_id');
-
-            $kelasList = Kelas::whereIn('id', $kelasIds)->orderBy('nama_kelas')->get();
-            $mapelList = MataPelajaran::whereIn('id', $mapelIds)->orderBy('nama_mapel')->get();
-            $guruList = collect();
-        } else {
-            $kelasList = Kelas::orderBy('nama_kelas')->get();
-            $mapelList = MataPelajaran::orderBy('nama_mapel')->get();
-            $guruList = Guru::orderBy('nama_lengkap')->get();
-        }
-
         $hariList = ['Sabtu', 'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis'];
         $statusList = ['Hadir', 'Izin', 'Sakit', 'Alpa'];
 
@@ -109,7 +125,9 @@ class AbsensiController extends Controller
             'mapelList',
             'guruList',
             'hariList',
-            'statusList'
+            'statusList',
+            'mapelByKelas',
+            'allMapelList'
         ));
     }
 

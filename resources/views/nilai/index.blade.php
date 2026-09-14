@@ -20,16 +20,39 @@
 </x-page-header>
 
 <div class="mb-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-    <form method="GET" class="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2 flex-wrap">
+    <form method="GET" class="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2 flex-wrap"
+        x-data="{
+            selectedKelas: '{{ request('kelas_id', '') }}',
+            selectedMapel: '{{ request('mapel_id', '') }}',
+            mapelByKelas: {{ json_encode($mapelByKelas ?? []) }},
+            allMapels: {{ json_encode($allMapelList ?? []) }},
+            get currentMapels() {
+                if (!this.selectedKelas) {
+                    return this.allMapels;
+                }
+                return this.mapelByKelas[this.selectedKelas] || [];
+            },
+            onKelasChange() {
+                const validIds = this.currentMapels.map(m => String(m.id));
+                if (this.selectedMapel && !validIds.includes(String(this.selectedMapel))) {
+                    this.selectedMapel = '';
+                    if (this.$refs.mapelSelect) {
+                        this.$refs.mapelSelect.value = '';
+                    }
+                }
+                this.$refs.nilaiFilterForm.submit();
+            }
+        }"
+        x-ref="nilaiFilterForm">
         <div class="relative w-full sm:w-56">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari nama atau NIS..."
+            <input type="search" name="search" value="{{ request('search') }}" placeholder="Cari nama atau NIS..."
                 class="block w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm pl-9 pr-4 py-2 focus:border-brand-500 focus:ring-brand-500">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                 <x-icon name="search" class="h-4 w-4" />
             </div>
         </div>
 
-        <select name="kelas_id" onchange="this.form.submit()"
+        <select name="kelas_id" x-model="selectedKelas" @change="onKelasChange()"
             class="block w-full sm:w-40 rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm py-2 focus:border-brand-500 focus:ring-brand-500">
             <option value="">Semua Kelas</option>
             @foreach ($kelasList as $k)
@@ -37,15 +60,13 @@
             @endforeach
         </select>
 
-        @if(isset($mapelList) && $mapelList->isNotEmpty())
-            <select name="mapel_id" onchange="this.form.submit()"
-                class="block w-full sm:w-44 rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm py-2 focus:border-brand-500 focus:ring-brand-500">
-                <option value="">Semua Mapel</option>
-                @foreach ($mapelList as $m)
-                    <option value="{{ $m->id }}" @selected(request('mapel_id') == $m->id)>{{ $m->nama_mapel }}</option>
-                @endforeach
-            </select>
-        @endif
+        <select name="mapel_id" x-ref="mapelSelect" x-model="selectedMapel" onchange="this.form.submit()"
+            class="block w-full sm:w-44 rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm py-2 focus:border-brand-500 focus:ring-brand-500">
+            <option value="">Semua Mapel</option>
+            @foreach ($mapelList as $m)
+                <option value="{{ $m->id }}" @selected(request('mapel_id') == $m->id)>{{ $m->nama_mapel }}</option>
+            @endforeach
+        </select>
 
         <button type="submit" class="w-full sm:w-auto px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium text-sm rounded-lg transition shadow-sm flex items-center justify-center gap-1.5">
             Cari

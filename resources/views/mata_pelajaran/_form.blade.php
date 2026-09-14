@@ -8,7 +8,7 @@
         @endforeach
     </x-form.select>
 
-    <x-form.input label="KKM" name="kkm" type="number" :value="$mapel->kkm ?? ''" min="0" max="100" />
+    <x-form.input label="KKM" name="kkm" type="number" step="1" min="0" max="100" placeholder="Contoh: 75" :value="$mapel->kkm ?? ''" onkeydown="if(['e','E','+','-','.'].includes(event.key)) event.preventDefault()" />
 
     <div class="sm:col-span-2">
         <x-form.textarea label="Deskripsi" name="deskripsi" :value="$mapel->deskripsi ?? ''" rows="3" />

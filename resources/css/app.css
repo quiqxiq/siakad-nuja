@@ -135,3 +135,15 @@ html {
     }
     .lp-reveal { opacity: 1; transform: none; transition: none; }
 }
+
+/* Sembunyikan spin button pada input number khusus identitas/kode (NIS, NIP) */
+.no-spinner::-webkit-inner-spin-button,
+.no-spinner::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.no-spinner {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+

@@ -265,7 +265,7 @@
             <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between gap-3">
                 <div class="relative w-full max-w-sm">
                     <x-icon name="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input type="text"
+                    <input type="search"
                         x-model="searchFilter"
                         placeholder="Cari nama atau NIS siswa di roster..."
                         class="block w-full rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white pl-9 pr-8 py-2 text-xs shadow-sm focus:border-brand-500 focus:ring-brand-500">

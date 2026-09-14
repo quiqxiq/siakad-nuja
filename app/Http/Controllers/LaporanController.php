@@ -23,11 +23,16 @@ class LaporanController extends Controller
      */
     public function index(Request $request): View
     {
+        $user = $request->user();
+        $isGuru = $user?->isGuru();
+        $guruModel = $user?->guru;
+
         $kelas = Kelas::orderBy('nama_kelas')->get();
         $mapel = MataPelajaran::orderBy('nama_mapel')->get();
         $guru  = Guru::orderBy('nama_lengkap')->get();
+        $mapelByKelas = Kelas::getMapelByKelasMapping(guru: $isGuru ? $guruModel : null);
 
-        return view('laporan.index', compact('kelas', 'mapel', 'guru'));
+        return view('laporan.index', compact('kelas', 'mapel', 'guru', 'mapelByKelas'));
     }
 
     /**
@@ -42,7 +47,7 @@ class LaporanController extends Controller
             'jenjang'  => 'nullable|in:MI,MTs,Semua',
             'kelas_id' => 'nullable|exists:kelas,id',
             'guru_id'  => 'nullable|exists:guru,id',
-            'export'   => 'nullable|in:pdf,csv,excel',
+            'export'   => 'nullable|in:pdf,excel',
         ]);
 
         $tipe    = $validated['tipe'];
@@ -166,12 +171,12 @@ class LaporanController extends Controller
             return $pdf->download(Str::slug($title) . '.pdf');
         }
 
-        if ($export === 'excel' || $export === 'csv') {
+        if ($export === 'excel') {
             return response()->view('laporan.pdf_jadwal', compact(
                 'tipe', 'jenjang', 'kelas', 'selectedKelas', 'selectedGuru',
                 'hariList', 'waktuKegiatan', 'matrix', 'title'
             ))
-            ->header('Content-Type', 'application/vnd.ms-excel')
+            ->header('Content-Type', 'application/vnd.ms-excel; charset=utf-8')
             ->header('Content-Disposition', 'attachment; filename="' . Str::slug($title) . '.xls"');
         }
 
@@ -189,7 +194,7 @@ class LaporanController extends Controller
         $validated = $request->validate([
             'kelas_id' => 'required|exists:kelas,id',
             'bulan'    => 'required|date_format:Y-m', // e.g., 2025-07
-            'export'   => 'nullable|in:pdf,csv',
+            'export'   => 'nullable|in:pdf,excel',
         ]);
 
         $kelas = Kelas::findOrFail($validated['kelas_id']);
@@ -234,8 +239,10 @@ class LaporanController extends Controller
             return $pdf->download('Rekap_Kehadiran_'.$kelas->nama_kelas.'_'.$bulan.'.pdf');
         }
 
-        if ($request->input('export') === 'csv') {
-            return $this->exportCsvKehadiran($kelas, $bulan, $siswa, $rekap);
+        if ($request->input('export') === 'excel') {
+            return response()->view('laporan.pdf_kehadiran', compact('kelas', 'bulan', 'siswa', 'rekap'))
+                ->header('Content-Type', 'application/vnd.ms-excel; charset=utf-8')
+                ->header('Content-Disposition', 'attachment; filename="Rekap_Kehadiran_' . Str::slug($kelas->nama_kelas) . '_' . Str::slug($bulan) . '.xls"');
         }
 
         return view('laporan.kehadiran', compact('kelas', 'bulan', 'siswa', 'rekap'));
@@ -249,7 +256,7 @@ class LaporanController extends Controller
         $validated = $request->validate([
             'kelas_id' => 'required|exists:kelas,id',
             'mapel_id' => 'required|exists:mata_pelajaran,id',
-            'export'   => 'nullable|in:pdf,csv',
+            'export'   => 'nullable|in:pdf,excel',
         ]);
 
         $kelas = Kelas::findOrFail($validated['kelas_id']);
@@ -279,74 +286,12 @@ class LaporanController extends Controller
             return $pdf->download('Rekap_Nilai_'.$kelas->nama_kelas.'_'.$mapel->kode_mapel.'.pdf');
         }
 
-        if ($request->input('export') === 'csv') {
-            return $this->exportCsvNilai($kelas, $mapel, $siswa, $nilai);
+        if ($request->input('export') === 'excel') {
+            return response()->view('laporan.pdf_nilai', compact('kelas', 'mapel', 'siswa', 'nilai'))
+                ->header('Content-Type', 'application/vnd.ms-excel; charset=utf-8')
+                ->header('Content-Disposition', 'attachment; filename="Rekap_Nilai_' . Str::slug($kelas->nama_kelas) . '_' . Str::slug($mapel->kode_mapel) . '.xls"');
         }
 
         return view('laporan.nilai', compact('kelas', 'mapel', 'siswa', 'nilai'));
-    }
-
-    /**
-     * Helper Ekspor CSV Kehadiran
-     */
-    private function exportCsvKehadiran($kelas, $bulan, $siswa, $rekap)
-    {
-        $filename = 'Rekap_Kehadiran_'.$kelas->nama_kelas.'_'.$bulan.'.csv';
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ];
-
-        $callback = function () use ($siswa, $rekap) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, ['No', 'NIS', 'Nama Siswa', 'Hadir', 'Sakit', 'Izin', 'Alpa']);
-            foreach ($siswa as $i => $s) {
-                fputcsv($file, [
-                    $i + 1,
-                    $s->nis,
-                    $s->nama_lengkap,
-                    $rekap[$s->id]['Hadir'],
-                    $rekap[$s->id]['Sakit'],
-                    $rekap[$s->id]['Izin'],
-                    $rekap[$s->id]['Alpa'],
-                ]);
-            }
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
-
-    /**
-     * Helper Ekspor CSV Nilai
-     */
-    private function exportCsvNilai($kelas, $mapel, $siswa, $nilai)
-    {
-        $filename = 'Rekap_Nilai_'.$kelas->nama_kelas.'_'.$mapel->kode_mapel.'.csv';
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ];
-
-        $callback = function () use ($siswa, $nilai) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, ['No', 'NIS', 'Nama Siswa', 'Harian', 'UTS', 'UAS', 'Akhir', 'Predikat']);
-            foreach ($siswa as $i => $s) {
-                $n = $nilai[$s->id] ?? null;
-                fputcsv($file, [
-                    $i + 1,
-                    $s->nis,
-                    $s->nama_lengkap,
-                    $n ? $n->nilai_harian : '-',
-                    $n ? $n->nilai_uts : '-',
-                    $n ? $n->nilai_uas : '-',
-                    $n ? $n->nilai_akhir : '-',
-                    $n ? $n->predikat : '-',
-                ]);
-            }
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
     }
 }

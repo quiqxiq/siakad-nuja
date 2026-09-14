@@ -1,5 +1,5 @@
 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-    <x-form.input label="NIS" name="nis" :value="$siswa->nis ?? ''" inputmode="numeric" pattern="[0-9]*" placeholder="contoh: 12345678" required />
+    <x-form.input label="NIS" name="nis" type="number" min="1" inputmode="numeric" class="no-spinner" onkeydown="if(['e','E','+','-','.'].includes(event.key)) event.preventDefault()" :value="$siswa->nis ?? ''" placeholder="contoh: 12345678" required />
     <x-form.input label="Nama Lengkap" name="nama_lengkap" :value="$siswa->nama_lengkap ?? ''" required />
 
     @php

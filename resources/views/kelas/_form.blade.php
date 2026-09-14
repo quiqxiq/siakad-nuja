@@ -39,7 +39,7 @@
         searchPlaceholder="Ketik nama atau NIP guru..."
         emptyText="Tidak ada guru yang cocok dengan pencarian" />
 
-    <x-form.input label="Kapasitas" name="kapasitas" type="number" :value="$kelas->kapasitas ?? ''" />
+    <x-form.input label="Kapasitas" name="kapasitas" type="number" min="1" max="255" step="1" placeholder="Contoh: 30" :value="$kelas->kapasitas ?? ''" onkeydown="if(['e','E','+','-','.'].includes(event.key)) event.preventDefault()" />
 </div>
 
 <div class="flex items-center gap-3 pt-6">

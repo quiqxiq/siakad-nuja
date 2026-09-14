@@ -9,24 +9,56 @@
  * every request and the same value is shared via the laravel-wa config.
  */
 
+// Top-level crash guards to prevent unhandled rejections from taking down the process
+process.on('unhandledRejection', (reason) => {
+  console.warn('[laravel-wa-sidecar] unhandled rejection caught (non-fatal):', reason?.message || reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.warn('[laravel-wa-sidecar] uncaught exception caught (non-fatal):', err?.message || err);
+});
+
 const express = require('express');
 const qrcode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
-const { Client, LocalAuth, MessageMedia, Location } = require('whatsapp-web.js');
-const { discoverPersistedSessions } = require('./session-store');
 
-// Monkey-patch Puppeteer helper in whatsapp-web.js to prevent "already exists" & "context destroyed" crashes
+// Patch Puppeteer CdpPage to prevent "window['...'] already exists" crashes upon navigation
+try {
+  const { CdpPage } = require('puppeteer-core/lib/cjs/puppeteer/cdp/Page.js');
+  if (CdpPage && CdpPage.prototype.exposeFunction) {
+    const originalExposeFunction = CdpPage.prototype.exposeFunction;
+    CdpPage.prototype.exposeFunction = async function (name, pptrFunction) {
+      try {
+        return await originalExposeFunction.call(this, name, pptrFunction);
+      } catch (err) {
+        if (
+          err &&
+          err.message &&
+          (err.message.includes('already exists') ||
+            err.message.includes('Execution context was destroyed') ||
+            err.message.includes('Target closed') ||
+            err.message.includes('Session closed'))
+        ) {
+          return;
+        }
+        throw err;
+      }
+    };
+  }
+} catch (err) {
+  console.warn('[laravel-wa-sidecar] notice: could not pre-patch CdpPage.prototype.exposeFunction:', err.message);
+}
+
+// Monkey-patch Puppeteer helper in whatsapp-web.js BEFORE Client is loaded
 try {
   const puppeteerUtil = require('whatsapp-web.js/src/util/Puppeteer');
   if (puppeteerUtil) {
     puppeteerUtil.exposeFunctionIfAbsent = async function (page, name, fn) {
-      if (!page) return;
+      if (!page || (typeof page.isClosed === 'function' && page.isClosed())) return;
       try {
         const exist = await page
-          .evaluate((n) => {
-            return typeof window !== 'undefined' && !!window[n];
-          }, name)
+          .evaluate((n) => typeof window !== 'undefined' && !!window[n], name)
           .catch(() => false);
         if (exist) return;
         await page.exposeFunction(name, fn);
@@ -49,26 +81,119 @@ try {
   console.warn('[laravel-wa-sidecar] failed to patch Puppeteer.exposeFunctionIfAbsent:', err.message);
 }
 
-// Monkey-patch Client.prototype.inject to gracefully handle frame navigation races
+const { Client, LocalAuth, MessageMedia, Location } = require('whatsapp-web.js');
+const { discoverPersistedSessions } = require('./session-store');
+
+// Monkey-patch Client.prototype.inject to handle navigation races AND inject fallback sync watcher
+// WhatsApp Web has removed WAWebSocketModel.Socket.hasSynced, so change:hasSynced never fires.
+// This fallback watches Socket state (CONNECTED), Conn model (connected, wid), and UserPrefs.
 try {
   const originalInject = Client.prototype.inject;
   Client.prototype.inject = async function () {
     try {
-      return await originalInject.call(this);
+      await originalInject.call(this);
     } catch (e) {
-      if (
-        e &&
-        (e.message?.includes('Execution context was destroyed') ||
-          e.message?.includes('already exists') ||
-          e.message?.includes('Target closed') ||
-          e.message?.includes('Session closed') ||
-          e.message?.includes('auth timeout') ||
-          e === 'auth timeout')
-      ) {
-        console.warn('[laravel-wa-sidecar] non-fatal notice in Client.inject:', e.message || e);
-        return;
+      console.warn('[laravel-wa-sidecar] non-fatal notice in Client.inject:', e.message || e);
+    }
+
+    // Install fallback state sync watcher
+    try {
+      if (this.pupPage && !this.pupPage.isClosed()) {
+        await this.pupPage.evaluate(() => {
+          if (window.__waSyncWatcherInstalled) return;
+          window.__waSyncWatcherInstalled = true;
+
+          let triggered = false;
+          let triggerTimer = null;
+
+          function triggerSync(reason) {
+            if (triggered) return;
+            if (typeof window.onAppStateHasSyncedEvent !== 'function') return;
+            triggered = true;
+            if (triggerTimer) {
+              clearTimeout(triggerTimer);
+              triggerTimer = null;
+            }
+            console.log('[laravel-wa-sidecar-browser] Triggering onAppStateHasSyncedEvent:', reason);
+            try {
+              window.onAppStateHasSyncedEvent().catch((err) => {
+                console.error('[laravel-wa-sidecar-browser] onAppStateHasSyncedEvent async error:', err);
+              });
+            } catch (err) {
+              console.error('[laravel-wa-sidecar-browser] onAppStateHasSyncedEvent sync error:', err);
+            }
+          }
+
+          function checkConnection() {
+            if (triggered) return;
+            try {
+              const Socket = window.require?.('WAWebSocketModel')?.Socket;
+              const Conn = window.require?.('WAWebConnModel')?.Conn;
+              const UserPrefs = window.require?.('WAWebUserPrefsMeUser');
+
+              const wid = Conn?.wid || UserPrefs?.getMaybeMePnUser?.() || UserPrefs?.getMaybeMeLidUser?.();
+              const isConnected = Socket?.state === 'CONNECTED' || Conn?.connected === true;
+
+              if (isConnected && wid) {
+                triggerSync(`Connected with wid (${String(wid)})`);
+                return;
+              }
+
+              if (isConnected && !triggerTimer) {
+                triggerTimer = setTimeout(() => {
+                  triggerSync(`Connected state reached (${Socket?.state || 'CONNECTED'})`);
+                }, 1200);
+              }
+            } catch (_) {}
+          }
+
+          try {
+            const Socket = window.require?.('WAWebSocketModel')?.Socket;
+            if (Socket) {
+              Socket.on('change:state', (_model, state) => {
+                if (state === 'CONNECTED') {
+                  checkConnection();
+                } else if (state === 'UNPAIRED' || state === 'UNPAIRED_IDLE') {
+                  triggered = false;
+                  if (triggerTimer) {
+                    clearTimeout(triggerTimer);
+                    triggerTimer = null;
+                  }
+                }
+              });
+              Socket.on('change:hasSynced', () => {
+                triggerSync('Socket change:hasSynced');
+              });
+            }
+          } catch (_) {}
+
+          try {
+            const Conn = window.require?.('WAWebConnModel')?.Conn;
+            if (Conn) {
+              Conn.on('change:connected', (_model, connected) => {
+                if (connected) checkConnection();
+              });
+              Conn.on('change:wid', (_model, wid) => {
+                if (wid) checkConnection();
+              });
+              Conn.on('change:meReadyTriggered', () => {
+                checkConnection();
+              });
+            }
+          } catch (_) {}
+
+          // Poller every 500ms
+          const poller = setInterval(() => {
+            if (triggered) {
+              clearInterval(poller);
+              return;
+            }
+            checkConnection();
+          }, 500);
+        });
       }
-      throw e;
+    } catch (err) {
+      console.warn('[laravel-wa-sidecar] failed to inject fallback sync watcher:', err.message);
     }
   };
 } catch (err) {
@@ -226,18 +351,26 @@ async function bootSession(sessionId, force = false) {
   sessions.set(sessionId, session);
 
   client.on('qr', async (qr) => {
+    console.log(`[laravel-wa-sidecar] session ${sessionId}: QR code received`);
     session.qrDataUri = await qrcode.toDataURL(qr);
     session.status = 'qr';
     broadcast(sessionId, 'qr', { dataUri: session.qrDataUri });
   });
 
   client.on('code', (code) => {
+    console.log(`[laravel-wa-sidecar] session ${sessionId}: pairing code received -> ${code}`);
     session.pairingCode = code;
     session.status = 'code';
     broadcast(sessionId, 'code', { code });
   });
 
+  client.on('loading_screen', (percent, message) => {
+    console.log(`[laravel-wa-sidecar] session ${sessionId}: loading screen ${percent}% - ${message}`);
+    broadcast(sessionId, 'loading_screen', { percent, message });
+  });
+
   client.on('authenticated', () => {
+    console.log(`[laravel-wa-sidecar] session ${sessionId}: AUTHENTICATED successfully!`);
     session.status = 'authenticated';
     session.pairingCode = null;
     session.errorMessage = null;
@@ -245,6 +378,7 @@ async function bootSession(sessionId, force = false) {
   });
 
   client.on('auth_failure', (msg) => {
+    console.error(`[laravel-wa-sidecar] session ${sessionId}: AUTH FAILURE:`, msg);
     session.status = 'auth_failure';
     session.pairingCode = null;
     session.errorMessage = msg;
@@ -252,6 +386,7 @@ async function bootSession(sessionId, force = false) {
   });
 
   client.on('ready', () => {
+    console.log(`[laravel-wa-sidecar] session ${sessionId}: READY and connected!`);
     session.status = 'ready';
     session.pairingCode = null;
     session.errorMessage = null;
@@ -259,6 +394,7 @@ async function bootSession(sessionId, force = false) {
   });
 
   client.on('disconnected', (reason) => {
+    console.warn(`[laravel-wa-sidecar] session ${sessionId}: DISCONNECTED:`, reason);
     session.status = 'disconnected';
     session.pairingCode = null;
     broadcast(sessionId, 'disconnected', { reason });
@@ -444,6 +580,71 @@ app.get('/sessions/:id/pairing-code', async (req, res, next) => {
       s = await bootSession(req.params.id);
     }
     res.json({ id: req.params.id, status: s.status, code: s.pairingCode });
+  } catch (e) { next(e); }
+});
+
+app.post('/sessions/:id/cancel-pairing-code', async (req, res, next) => {
+  try {
+    const s = sessions.get(req.params.id);
+    if (!s) return res.status(404).json({ error: 'session not found' });
+    if (s.client?.cancelPairingCode) {
+      await s.client.cancelPairingCode().catch(() => {});
+    }
+    s.pairingCode = null;
+    s.status = 'initializing';
+    res.json({ id: req.params.id, status: s.status });
+  } catch (e) { next(e); }
+});
+
+app.get('/sessions/:id/debug', async (req, res, next) => {
+  try {
+    const s = sessions.get(req.params.id);
+    if (!s) return res.status(404).json({ error: 'session not found' });
+    let pageEval = null;
+    if (s.client?.pupPage && !s.client.pupPage.isClosed()) {
+      try {
+        pageEval = await s.client.pupPage.evaluate(() => {
+          const Socket = window.require?.('WAWebSocketModel')?.Socket;
+          const Conn = window.require?.('WAWebConnModel')?.Conn;
+          const UserPrefs = window.require?.('WAWebUserPrefsMeUser');
+          const wid = Conn?.wid || UserPrefs?.getMaybeMePnUser?.() || UserPrefs?.getMaybeMeLidUser?.();
+          return {
+            url: window.location.href,
+            socketState: Socket?.state,
+            connConnected: Conn?.connected,
+            connRef: Conn?.ref ? 'present' : 'none',
+            hasWid: Boolean(wid),
+            wid: wid ? String(wid) : null,
+            wwebjs: typeof window.WWebJS,
+            hasSyncedFn: typeof window.onAppStateHasSyncedEvent,
+            syncWatcherInstalled: !!window.__waSyncWatcherInstalled,
+          };
+        });
+      } catch (err) {
+        pageEval = { error: err.message };
+      }
+    }
+    res.json({
+      id: req.params.id,
+      status: s.status,
+      pairingCode: s.pairingCode,
+      hasQr: Boolean(s.qrDataUri),
+      errorMessage: s.errorMessage,
+      subscribersCount: s.subscribers?.size || 0,
+      page: pageEval,
+    });
+  } catch (e) { next(e); }
+});
+
+app.get('/sessions/:id/screenshot', async (req, res, next) => {
+  try {
+    const s = sessions.get(req.params.id);
+    if (!s || !s.client?.pupPage || s.client.pupPage.isClosed()) {
+      return res.status(404).json({ error: 'session or page not available' });
+    }
+    const buffer = await s.client.pupPage.screenshot({ type: 'png' });
+    res.set('Content-Type', 'image/png');
+    res.send(buffer);
   } catch (e) { next(e); }
 });
 
@@ -789,11 +990,3 @@ function shutdown(signal) {
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
-
-process.on('unhandledRejection', (reason) => {
-  console.warn('[laravel-wa-sidecar] unhandled rejection caught (non-fatal):', reason?.message || reason);
-});
-
-process.on('uncaughtException', (err) => {
-  console.warn('[laravel-wa-sidecar] uncaught exception caught (non-fatal):', err?.message || err);
-});

@@ -38,8 +38,8 @@
                     <button type="submit" name="export" value="pdf" class="flex-1 bg-brand-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-brand-700 transition flex items-center justify-center gap-2 shadow-sm">
                         <x-icon name="download" class="h-5 w-5" /> PDF
                     </button>
-                    <button type="submit" name="export" value="csv" class="flex-1 bg-emerald-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-sm">
-                        <x-icon name="download" class="h-5 w-5" /> CSV
+                    <button type="submit" name="export" value="excel" class="flex-1 bg-emerald-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-sm">
+                        <x-icon name="download" class="h-5 w-5" /> Excel
                     </button>
                 </div>
             </form>
@@ -58,10 +58,30 @@
             </div>
         </div>
         <div class="p-6 bg-slate-50">
-            <form action="{{ route('laporan.nilai') }}" method="GET" class="grid sm:grid-cols-3 gap-4 items-end" target="_blank">
+            <form action="{{ route('laporan.nilai') }}" method="GET" class="grid sm:grid-cols-3 gap-4 items-end" target="_blank"
+                x-data="{
+                    selectedKelas: '',
+                    selectedMapel: '',
+                    mapelByKelas: {{ json_encode($mapelByKelas ?? []) }},
+                    onKelasChange() {
+                        const select = this.$refs.mapelSelect;
+                        if (!select) return;
+                        const mapels = this.selectedKelas ? (this.mapelByKelas[this.selectedKelas] || []) : [];
+                        while (select.options.length > 1) {
+                            select.remove(1);
+                        }
+                        mapels.forEach(m => {
+                            const opt = document.createElement('option');
+                            opt.value = m.id;
+                            opt.textContent = m.nama_mapel + ' (' + (m.jenjang || '') + ')';
+                            select.appendChild(opt);
+                        });
+                        select.value = '';
+                    }
+                }">
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-1.5">Pilih Kelas</label>
-                    <select name="kelas_id" class="w-full rounded-xl border-slate-200 py-3 px-4 focus:ring-2 focus:ring-indigo-500" required>
+                    <select name="kelas_id" x-model="selectedKelas" @change="onKelasChange()" class="w-full rounded-xl border-slate-200 py-3 px-4 focus:ring-2 focus:ring-indigo-500" required>
                         <option value="">-- Pilih Kelas --</option>
                         @foreach($kelas as $k)
                             <option value="{{ $k->id }}">{{ $k->nama_lengkap }}</option>
@@ -70,7 +90,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-1.5">Pilih Mata Pelajaran</label>
-                    <select name="mapel_id" class="w-full rounded-xl border-slate-200 py-3 px-4 focus:ring-2 focus:ring-indigo-500" required>
+                    <select name="mapel_id" x-ref="mapelSelect" class="w-full rounded-xl border-slate-200 py-3 px-4 focus:ring-2 focus:ring-indigo-500" required>
                         <option value="">-- Pilih Mapel --</option>
                         @foreach($mapel as $m)
                             <option value="{{ $m->id }}">{{ $m->nama_mapel }} ({{ $m->jenjang }})</option>
@@ -84,8 +104,8 @@
                     <button type="submit" name="export" value="pdf" class="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition flex items-center justify-center gap-2 shadow-sm">
                         <x-icon name="download" class="h-5 w-5" /> PDF
                     </button>
-                    <button type="submit" name="export" value="csv" class="flex-1 bg-emerald-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-sm">
-                        <x-icon name="download" class="h-5 w-5" /> CSV
+                    <button type="submit" name="export" value="excel" class="flex-1 bg-emerald-600 text-white px-4 py-3 rounded-xl font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-sm">
+                        <x-icon name="download" class="h-5 w-5" /> Excel
                     </button>
                 </div>
             </form>

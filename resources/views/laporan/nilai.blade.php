@@ -56,8 +56,8 @@
 
     <div class="mt-8 flex justify-end gap-3 print:hidden">
         <a href="{{ route('laporan.index') }}" class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-50 transition">Kembali</a>
-        <a href="{{ route('laporan.nilai', ['kelas_id' => $kelas->id, 'mapel_id' => $mapel->id, 'export' => 'csv']) }}" class="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition shadow-sm flex items-center gap-2">
-            <x-icon name="download" class="h-4 w-4" /> Export CSV
+        <a href="{{ route('laporan.nilai', ['kelas_id' => $kelas->id, 'mapel_id' => $mapel->id, 'export' => 'excel']) }}" class="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition shadow-sm flex items-center gap-2">
+            <x-icon name="download" class="h-4 w-4" /> Unduh Excel
         </a>
         <a href="{{ route('laporan.nilai', ['kelas_id' => $kelas->id, 'mapel_id' => $mapel->id, 'export' => 'pdf']) }}" class="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition shadow-sm flex items-center gap-2">
             <x-icon name="download" class="h-4 w-4" /> Cetak PDF

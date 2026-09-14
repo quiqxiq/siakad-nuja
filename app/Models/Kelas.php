@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class Kelas extends Model
 {
@@ -52,23 +54,60 @@ class Kelas extends Model
     }
 
     /**
+     * Mengambil daftar mata pelajaran untuk suatu kelas (dan guru tertentu jika ada).
+     *
+     * @param  int|Kelas  $kelas
+     * @param  Guru|null  $guru
+     * @return Collection<int, MataPelajaran>
+     */
+    public static function getMapelsForKelas(int|self $kelas, ?Guru $guru = null): Collection
+    {
+        $kelasModel = $kelas instanceof self ? $kelas : self::find($kelas);
+        if (! $kelasModel) {
+            return new Collection();
+        }
+
+        if ($guru !== null) {
+            $teachingMapelIds = $guru->jadwal()
+                ->where('kelas_id', $kelasModel->id)
+                ->pluck('mapel_id')
+                ->unique()
+                ->values()
+                ->all();
+
+            return MataPelajaran::whereIn('id', $teachingMapelIds ?: [0])
+                ->orderBy('nama_mapel')
+                ->get();
+        }
+
+        $fromJadwal = JadwalPelajaran::where('kelas_id', $kelasModel->id)->pluck('mapel_id');
+        $fromPivot = DB::table('kelas_mata_pelajaran')->where('kelas_id', $kelasModel->id)->pluck('mapel_id');
+        $combinedIds = $fromJadwal->merge($fromPivot)->unique()->filter()->values()->all();
+
+        if (! empty($combinedIds)) {
+            return MataPelajaran::whereIn('id', $combinedIds)->orderBy('nama_mapel')->get();
+        }
+
+        // Fallback ke jenjang jika kelas baru belum memiliki jadwal atau data pivot kurikulum
+        return MataPelajaran::where(function ($q) use ($kelasModel): void {
+            $q->where('jenjang', $kelasModel->jenjang)->orWhere('jenjang', 'Semua');
+        })->orderBy('nama_mapel')->get();
+    }
+
+    /**
      * Mengembalikan pemetaan array kelas_id => daftar mata pelajaran untuk form cascading.
      *
      * @param  array<int, int>|null  $accessibleMapelIds
+     * @param  Guru|null  $guru
      * @return array<int, array<int, array<string, mixed>>>
      */
-    public static function getMapelByKelasMapping(?array $accessibleMapelIds = null): array
+    public static function getMapelByKelasMapping(?array $accessibleMapelIds = null, ?Guru $guru = null): array
     {
-        $kelasList = static::with(['mataPelajaran' => fn ($q) => $q->orderBy('nama_mapel')])->get();
-        $allMapel = MataPelajaran::orderBy('nama_mapel')->get();
+        $kelasList = static::orderBy('nama_kelas')->get();
 
         $mapping = [];
         foreach ($kelasList as $kelas) {
-            $mapels = $kelas->mataPelajaran;
-            // Fallback ke jenjang jika belum ada relasi eksplisit di kelas_mata_pelajaran
-            if ($mapels->isEmpty()) {
-                $mapels = $allMapel->where('jenjang', $kelas->jenjang);
-            }
+            $mapels = static::getMapelsForKelas($kelas, $guru);
 
             if ($accessibleMapelIds !== null) {
                 $mapels = $mapels->whereIn('id', $accessibleMapelIds);

@@ -31,6 +31,33 @@ class NilaiController extends Controller
         $isGuru = $user?->isGuru();
         $guru = $user?->guru;
 
+        $selectedKelasId = request('kelas_id') ? (int) request('kelas_id') : null;
+        $selectedMapelId = request('mapel_id') ? (int) request('mapel_id') : null;
+
+        if ($isGuru) {
+            $teachingKelasIds = $guru?->teachingKelasIds() ?? [];
+            $kelasList = Kelas::whereIn('id', $teachingKelasIds ?: [0])->orderBy('nama_kelas')->get();
+            $allMapelList = MataPelajaran::whereIn('id', $guru?->teachingMapelIds() ?: [0])->orderBy('nama_mapel')->get(['id', 'nama_mapel']);
+        } else {
+            $kelasList = Kelas::orderBy('nama_kelas')->get();
+            $allMapelList = MataPelajaran::orderBy('nama_mapel')->get(['id', 'nama_mapel']);
+        }
+
+        $mapelByKelas = Kelas::getMapelByKelasMapping(guru: $isGuru ? $guru : null);
+
+        if ($selectedKelasId) {
+            $mapelList = Kelas::getMapelsForKelas($selectedKelasId, $isGuru ? $guru : null);
+            $validMapelIds = $mapelList->pluck('id')->all();
+            if ($selectedMapelId && ! in_array($selectedMapelId, $validMapelIds, true)) {
+                $selectedMapelId = null;
+                request()->merge(['mapel_id' => null]);
+            }
+        } else {
+            $mapelList = $isGuru
+                ? MataPelajaran::whereIn('id', $guru?->teachingMapelIds() ?: [0])->orderBy('nama_mapel')->get()
+                : MataPelajaran::orderBy('nama_mapel')->get();
+        }
+
         $nilai = Nilai::with(['siswa', 'mapel', 'kelas'])
             ->when($isGuru, function ($query) use ($guru): void {
                 // Guru hanya melihat dan mengelola nilai kelas & mapel yang ia ampu.
@@ -47,8 +74,8 @@ class NilaiController extends Controller
                     }
                 });
             })
-            ->when(request('kelas_id'), fn ($query, $id) => $query->where('kelas_id', $id))
-            ->when(request('mapel_id'), fn ($query, $id) => $query->where('mapel_id', $id))
+            ->when($selectedKelasId, fn ($query, $id) => $query->where('kelas_id', $id))
+            ->when($selectedMapelId, fn ($query, $id) => $query->where('mapel_id', $id))
             ->when(request('semester'), fn ($query, $s) => $query->where('semester', $s))
             ->when(request('search'), function ($query, $search): void {
                 $query->whereHas('siswa', function ($q) use ($search): void {
@@ -60,17 +87,7 @@ class NilaiController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        if ($isGuru) {
-            $teachingKelasIds = $guru?->teachingKelasIds() ?? [];
-            $teachingMapelIds = $guru?->teachingMapelIds() ?? [];
-            $kelasList = Kelas::whereIn('id', $teachingKelasIds ?: [0])->orderBy('nama_kelas')->get();
-            $mapelList = MataPelajaran::whereIn('id', $teachingMapelIds ?: [0])->orderBy('nama_mapel')->get();
-        } else {
-            $kelasList = Kelas::orderBy('nama_kelas')->get();
-            $mapelList = MataPelajaran::orderBy('nama_mapel')->get();
-        }
-
-        return view('nilai.index', compact('nilai', 'kelasList', 'mapelList'));
+        return view('nilai.index', compact('nilai', 'kelasList', 'mapelList', 'mapelByKelas', 'allMapelList'));
     }
 
     /**
@@ -424,7 +441,7 @@ class NilaiController extends Controller
             $teachingMapelIds = $guru?->teachingMapelIds() ?? [];
 
             $kelas = Kelas::whereIn('id', $teachingKelasIds ?: [0])->orderBy('nama_kelas')->get();
-            $mapelByKelas = Kelas::getMapelByKelasMapping($teachingMapelIds);
+            $mapelByKelas = Kelas::getMapelByKelasMapping($teachingMapelIds, guru: $guru);
             $mapel = MataPelajaran::whereIn('id', $teachingMapelIds ?: [0])->orderBy('nama_mapel')->get();
             $siswa = Siswa::with('kelas')->whereIn('kelas_id', $teachingKelasIds ?: [0])->orderBy('nama_lengkap')->get();
         } else {

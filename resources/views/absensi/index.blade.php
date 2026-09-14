@@ -92,7 +92,44 @@
 
 {{-- Bar Pencarian & Multi-Filter --}}
 <div class="mb-5 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-    <form method="GET" action="{{ route('absensi.index') }}" class="space-y-3">
+    <form method="GET" action="{{ route('absensi.index') }}" class="space-y-3"
+        x-data="{
+            selectedKelas: '{{ request('kelas_id', '') }}',
+            selectedMapel: '{{ request('mapel_id', '') }}',
+            mapelByKelas: {{ json_encode($mapelByKelas ?? []) }},
+            allMapels: {{ json_encode($allMapelList ?? []) }},
+            get currentMapels() {
+                if (!this.selectedKelas) {
+                    return this.allMapels;
+                }
+                return this.mapelByKelas[this.selectedKelas] || [];
+            },
+            onKelasChange() {
+                this.updateMapelSelect();
+            },
+            updateMapelSelect() {
+                const select = this.$refs.mapelSelect;
+                if (!select) return;
+                const mapels = this.currentMapels;
+                const validIds = mapels.map(m => String(m.id));
+                if (this.selectedMapel && !validIds.includes(String(this.selectedMapel))) {
+                    this.selectedMapel = '';
+                }
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+                mapels.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.id;
+                    opt.textContent = m.nama_mapel;
+                    if (String(m.id) === String(this.selectedMapel)) {
+                        opt.selected = true;
+                    }
+                    select.appendChild(opt);
+                });
+                select.value = this.selectedMapel || '';
+            }
+        }">
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
 
             {{-- Input Pencarian --}}
@@ -108,7 +145,7 @@
             {{-- Filter Kelas --}}
             <div>
                 <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Kelas</label>
-                <select name="kelas_id"
+                <select name="kelas_id" x-model="selectedKelas" @change="onKelasChange()"
                     class="block w-full rounded-xl border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 py-2">
                     <option value="">Semua Kelas</option>
                     @foreach ($kelasList as $k)
@@ -120,7 +157,7 @@
             {{-- Filter Mapel --}}
             <div>
                 <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Mata Pelajaran</label>
-                <select name="mapel_id"
+                <select name="mapel_id" x-ref="mapelSelect" x-model="selectedMapel"
                     class="block w-full rounded-xl border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500 py-2">
                     <option value="">Semua Mapel</option>
                     @foreach ($mapelList as $m)

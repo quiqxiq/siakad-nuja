@@ -208,7 +208,8 @@ class WhatsappGatewayService
     public function logout(): bool
     {
         try {
-            WhatsApp::web('main')->stop();
+            WhatsApp::web('main')->destroy();
+            WhatsApp::web('main')->start();
             return true;
         } catch (\Exception $e) {
             Log::error('[LaravelWhatsApp] Logout error: ' . $e->getMessage());

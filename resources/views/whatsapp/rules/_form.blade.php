@@ -10,7 +10,7 @@
             placeholder="contoh: 🎨 Info Ekstrakurikuler" hint="Label menu yang akan ditampilkan pada daftar menu utama." />
 
         {{-- Urutan Tampilan --}}
-        <x-form.input label="Urutan Nomor Menu" name="urutan" type="number" min="0" :value="$rule->urutan ?? 0" required
+        <x-form.input label="Urutan Nomor Menu" name="urutan" type="number" min="0" step="1" :value="$rule->urutan ?? 0" required
             hint="Menentukan urutan tampilan daftar menu (0, 1, 2, dst)." />
 
         {{-- Tipe Action --}}
