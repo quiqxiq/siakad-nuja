@@ -46,7 +46,7 @@ class DatabaseSeeder extends Seeder
         $siswaList = $this->seedSiswa($dataset['mi_students'] ?? [], $dataset['mts_students'] ?? [], $kelasMap);
         $this->seedOrangTua($siswaList);
         
-        $jadwalList = $this->seedJadwal(
+        $this->seedJadwal(
             $dataset['mi_schedules'] ?? [],
             $dataset['mts_schedules'] ?? [],
             $kelasMap,
@@ -55,11 +55,11 @@ class DatabaseSeeder extends Seeder
         );
 
         $this->seedNilai($siswaList, $mapelMap);
-        $this->seedAbsensi($jadwalList, $siswaList);
         $this->seedPengumuman($admin);
         $this->seedTagihan($siswaList, $admin);
 
         $this->call(ChatbotRuleSeeder::class);
+        $this->call(AbsensiSeeder::class);
 
         $this->command->info('Seeding data real MI & MTs selesai. Login admin: admin@siakadnuja.sch.id / password');
     }
@@ -486,52 +486,6 @@ class DatabaseSeeder extends Seeder
 
         foreach (array_chunk($rows, 500) as $chunk) {
             Nilai::insert($chunk);
-        }
-    }
-
-    /**
-     * @param  array<int, JadwalPelajaran>  $jadwalList
-     * @param  array<int, array{siswa: Siswa, data: array}>  $siswaList
-     */
-    private function seedAbsensi(array $jadwalList, array $siswaList): void
-    {
-        $jadwalPerKelas = [];
-        foreach ($jadwalList as $jadwal) {
-            if ($jadwal->jam_ke === 1 && ! isset($jadwalPerKelas[$jadwal->kelas_id])) {
-                $jadwalPerKelas[$jadwal->kelas_id] = $jadwal;
-            }
-        }
-
-        $siswaPerKelas = [];
-        foreach ($siswaList as $item) {
-            $siswa = $item['siswa'];
-            $siswaPerKelas[$siswa->kelas_id][] = $siswa;
-        }
-
-        $tanggalList = [];
-        for ($i = 1; $i <= 5; $i++) {
-            $tanggalList[] = now()->subDays($i)->format('Y-m-d');
-        }
-
-        $rows = [];
-        foreach ($jadwalPerKelas as $kelasId => $jadwal) {
-            foreach ($tanggalList as $tanggal) {
-                foreach ($siswaPerKelas[$kelasId] ?? [] as $siswa) {
-                    $status = fake()->randomElement(['Hadir', 'Hadir', 'Hadir', 'Hadir', 'Izin', 'Sakit', 'Alpa']);
-                    $rows[] = [
-                        'siswa_id' => $siswa->id,
-                        'jadwal_id' => $jadwal->id,
-                        'tanggal' => $tanggal,
-                        'status' => $status,
-                        'keterangan' => $status === 'Izin' ? 'Ada keperluan keluarga' : null,
-                        'created_at' => now(),
-                    ];
-                }
-            }
-        }
-
-        foreach (array_chunk($rows, 500) as $chunk) {
-            Absensi::insert($chunk);
         }
     }
 

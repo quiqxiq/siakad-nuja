@@ -34,8 +34,10 @@ Route::middleware('guest')->group(function (): void {
     Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
     Route::post('/forgot-password', [ForgotPasswordController::class, 'sendOtp'])->name('password.send_otp');
     Route::get('/forgot-password/verify', [ForgotPasswordController::class, 'showVerifyForm'])->name('password.verify_form');
-    Route::post('/forgot-password/verify', [ForgotPasswordController::class, 'verifyAndReset'])->name('password.reset_attempt');
+    Route::post('/forgot-password/verify', [ForgotPasswordController::class, 'verifyOtp'])->name('password.verify_otp');
     Route::post('/forgot-password/resend', [ForgotPasswordController::class, 'resendOtp'])->name('password.resend_otp');
+    Route::get('/forgot-password/reset', [ForgotPasswordController::class, 'showResetForm'])->name('password.reset_form');
+    Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'resetPassword'])->name('password.reset_password');
 });
 
 Route::middleware('auth')->group(function (): void {

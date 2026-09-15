@@ -63,11 +63,11 @@ class ForgotPasswordController extends Controller
 
         // Cek cooldown pengiriman (minimal jeda 60 detik)
         $sentAt = session('password_reset_sent_at_'.$user->id);
-        if ($sentAt instanceof Carbon && now()->diffInSeconds($sentAt) < 60) {
-            $remaining = 60 - now()->diffInSeconds($sentAt);
+        if ($sentAt instanceof Carbon && $sentAt->diffInSeconds(now()) < 60) {
+            $remaining = (int) ceil(60 - $sentAt->diffInSeconds(now()));
 
             return back()->withErrors([
-                'identifier' => "Harap tunggu {$remaining} detik sebelum meminta kode OTP kembali.",
+                'identifier' => "Harap tunggu {$this->formatSecondsToHuman($remaining)} sebelum meminta kode OTP kembali.",
             ])->withInput();
         }
 
@@ -144,15 +144,23 @@ class ForgotPasswordController extends Controller
         $sentAt = session('password_reset_sent_at_'.$user->id);
         $cooldown = 0;
         if ($sentAt instanceof Carbon) {
-            $diff = now()->diffInSeconds($sentAt);
-            if ($diff < 60) {
-                $cooldown = 60 - $diff;
+            $elapsed = $sentAt->diffInSeconds(now());
+            if ($elapsed < 60) {
+                $cooldown = (int) ceil(60 - $elapsed);
             }
+        }
+
+        $resetRecord = DB::table('password_reset_tokens')->where('email', $user->email)->first();
+        $expiresIn = 600; // default 10 menit
+        if ($resetRecord && $resetRecord->created_at) {
+            $createdAt = Carbon::parse($resetRecord->created_at);
+            $elapsed = $createdAt->diffInSeconds(now());
+            $expiresIn = max(0, (int) ceil(600 - $elapsed));
         }
 
         $maskedPhone = session('password_reset_phone') ?? $this->maskPhoneNumber($user->no_hp);
 
-        return view('auth.verify-otp', compact('user', 'maskedPhone', 'cooldown'));
+        return view('auth.verify-otp', compact('user', 'maskedPhone', 'cooldown', 'expiresIn'));
     }
 
     /**
@@ -173,10 +181,10 @@ class ForgotPasswordController extends Controller
         }
 
         $sentAt = session('password_reset_sent_at_'.$user->id);
-        if ($sentAt instanceof Carbon && now()->diffInSeconds($sentAt) < 60) {
-            $remaining = 60 - now()->diffInSeconds($sentAt);
+        if ($sentAt instanceof Carbon && $sentAt->diffInSeconds(now()) < 60) {
+            $remaining = (int) ceil(60 - $sentAt->diffInSeconds(now()));
 
-            return back()->with('error', "Harap tunggu {$remaining} detik sebelum meminta kode OTP kembali.");
+            return back()->with('error', "Harap tunggu {$this->formatSecondsToHuman($remaining)} sebelum meminta kode OTP kembali.");
         }
 
         $otp = (string) random_int(100000, 999999);
@@ -218,20 +226,15 @@ class ForgotPasswordController extends Controller
     }
 
     /**
-     * Verifikasi kode OTP dan perbarui password user.
+     * Verifikasi kode OTP WhatsApp.
      */
-    public function verifyAndReset(Request $request): RedirectResponse
+    public function verifyOtp(Request $request): RedirectResponse
     {
         $request->validate([
             'otp' => 'required|string|size:6',
-            'password' => 'required|string|min:8|confirmed',
-            'password_confirmation' => 'required|string',
         ], [
             'otp.required' => 'Kode OTP wajib diisi.',
             'otp.size' => 'Kode OTP harus berupa 6 digit angka.',
-            'password.required' => 'Password baru wajib diisi.',
-            'password.min' => 'Password baru minimal berjumlah 8 karakter.',
-            'password.confirmed' => 'Konfirmasi password baru tidak cocok.',
         ]);
 
         $userId = session('password_reset_user_id');
@@ -272,6 +275,69 @@ class ForgotPasswordController extends Controller
             ])->withInput($request->only('otp'));
         }
 
+        // Tandai bahwa OTP berhasil diverifikasi pada session
+        session([
+            'password_reset_otp_verified' => true,
+            'password_reset_verified_at' => now(),
+        ]);
+
+        return redirect()->route('password.reset_form')
+            ->with('success', 'Kode OTP berhasil diverifikasi! Silakan buat password baru Anda.');
+    }
+
+    /**
+     * Tampilkan halaman formulir atur password baru (hanya jika OTP terverifikasi).
+     */
+    public function showResetForm(): View|RedirectResponse
+    {
+        $userId = session('password_reset_user_id');
+        $email = session('password_reset_email');
+        $isVerified = session('password_reset_otp_verified');
+
+        if (! $userId || ! $email || ! $isVerified) {
+            return redirect()->route('password.request')
+                ->with('error', 'Sesi verifikasi belum selesai atau telah berakhir. Silakan masukkan identitas Anda terlebih dahulu.');
+        }
+
+        $user = User::find($userId);
+        if (! $user) {
+            return redirect()->route('password.request')
+                ->with('error', 'Pengguna tidak ditemukan.');
+        }
+
+        return view('auth.reset-password', compact('user'));
+    }
+
+    /**
+     * Simpan pembaruan password baru user setelah OTP diverifikasi.
+     */
+    public function resetPassword(Request $request): RedirectResponse
+    {
+        $userId = session('password_reset_user_id');
+        $email = session('password_reset_email');
+        $isVerified = session('password_reset_otp_verified');
+
+        if (! $userId || ! $email || ! $isVerified) {
+            return redirect()->route('password.request')
+                ->with('error', 'Sesi verifikasi kedaluwarsa. Silakan ajukan lupa password kembali.');
+        }
+
+        $request->validate([
+            'password' => 'required|string|min:8|confirmed',
+            'password_confirmation' => 'required|string',
+        ], [
+            'password.required' => 'Password baru wajib diisi.',
+            'password.min' => 'Password baru minimal berjumlah 8 karakter.',
+            'password.confirmed' => 'Konfirmasi password baru tidak cocok.',
+            'password_confirmation.required' => 'Konfirmasi password baru wajib diisi.',
+        ]);
+
+        $user = User::find($userId);
+        if (! $user) {
+            return redirect()->route('password.request')
+                ->with('error', 'Pengguna tidak ditemukan.');
+        }
+
         // Update password user
         $user->update([
             'password' => Hash::make((string) $request->input('password')),
@@ -280,13 +346,15 @@ class ForgotPasswordController extends Controller
         // Hapus token yang sudah dipakai
         DB::table('password_reset_tokens')->where('email', $user->email)->delete();
 
-        // Bersihkan session
+        // Bersihkan seluruh session terkait reset password
         session()->forget([
             'password_reset_user_id',
             'password_reset_email',
             'password_reset_phone',
             'password_reset_raw_phone',
             'password_reset_sent_at_'.$user->id,
+            'password_reset_otp_verified',
+            'password_reset_verified_at',
         ]);
 
         // Kirim konfirmasi perubahan password via WA
@@ -301,6 +369,14 @@ class ForgotPasswordController extends Controller
         }
 
         return redirect()->route('login')->with('success', 'Password Anda berhasil diperbarui! Silakan masuk dengan password baru.');
+    }
+
+    /**
+     * Alias untuk kompatibilitas ke belakang jika diperlukan.
+     */
+    public function verifyAndReset(Request $request): RedirectResponse
+    {
+        return $this->verifyOtp($request);
     }
 
     /**
@@ -360,5 +436,26 @@ class ForgotPasswordController extends Controller
         $suffix = substr($clean, -2);
 
         return $prefix.'-****-**'.$suffix;
+    }
+
+    /**
+     * Format detik ke teks manusiawi (contoh: "1 menit", "1 menit 15 detik", atau "45 detik").
+     */
+    private function formatSecondsToHuman(int|float $seconds): string
+    {
+        $seconds = (int) round($seconds);
+
+        if ($seconds < 60) {
+            return "{$seconds} detik";
+        }
+
+        $minutes = intdiv($seconds, 60);
+        $remainingSeconds = $seconds % 60;
+
+        if ($remainingSeconds === 0) {
+            return "{$minutes} menit";
+        }
+
+        return "{$minutes} menit {$remainingSeconds} detik";
     }
 }

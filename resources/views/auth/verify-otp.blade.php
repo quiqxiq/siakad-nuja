@@ -6,13 +6,18 @@
 <div class="flex min-h-screen items-center justify-center bg-slate-100 dark:bg-slate-950 px-4 py-12"
     x-data="{
         cooldown: {{ $cooldown ?? 0 }},
+        expiresIn: {{ $expiresIn ?? 600 }},
+        formatTime(sec) {
+            if (sec <= 0) return '00:00';
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        },
         init() {
-            if (this.cooldown > 0) {
-                const timer = setInterval(() => {
-                    this.cooldown--;
-                    if (this.cooldown <= 0) clearInterval(timer);
-                }, 1000);
-            }
+            setInterval(() => {
+                if (this.cooldown > 0) this.cooldown--;
+                if (this.expiresIn > 0) this.expiresIn--;
+            }, 1000);
         }
     }">
     <div class="w-full max-w-md">
@@ -63,7 +68,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('password.reset_attempt') }}" class="space-y-5">
+            <form method="POST" action="{{ route('password.verify_otp') }}" class="space-y-5">
                 @csrf
 
                 <div>
@@ -84,38 +89,33 @@
                         placeholder="••••••"
                         class="block w-full text-center text-2xl font-mono tracking-[0.6em] rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white px-4 py-3 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition placeholder:text-slate-300 dark:placeholder:text-slate-600 {{ $errors->has('otp') ? 'border-red-400 ring-2 ring-red-400/20' : '' }}"
                     />
-                    <p class="mt-1 text-center text-xs text-slate-400">Kode ini hanya berlaku selama 10 menit.</p>
-                </div>
 
-                <div class="border-t border-slate-200/80 dark:border-slate-700/80 pt-4 space-y-4">
-                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 text-center">
-                        Buat Password Baru
-                    </h3>
-
-                    <x-form.input
-                        label="Password Baru"
-                        name="password"
-                        type="password"
-                        placeholder="Minimal 8 karakter"
-                        required
-                        autocomplete="new-password"
-                    />
-
-                    <x-form.input
-                        label="Konfirmasi Password Baru"
-                        name="password_confirmation"
-                        type="password"
-                        placeholder="Ketik ulang password baru"
-                        required
-                        autocomplete="new-password"
-                    />
+                    {{-- Timer hitung mundur kedaluwarsa OTP --}}
+                    <div class="mt-2.5 flex items-center justify-center">
+                        <template x-if="expiresIn > 0">
+                            <div class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-800/60">
+                                <svg class="h-3.5 w-3.5 animate-pulse text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Kode kedaluwarsa dalam: <strong class="font-mono text-xs font-bold text-amber-900 dark:text-amber-200" x-text="formatTime(expiresIn)"></strong> menit</span>
+                            </div>
+                        </template>
+                        <template x-if="expiresIn <= 0">
+                            <div class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700 dark:bg-red-950/50 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-800/60">
+                                <svg class="h-3.5 w-3.5 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <span>Kode OTP telah kedaluwarsa. Silakan kirim ulang OTP di bawah.</span>
+                            </div>
+                        </template>
+                    </div>
                 </div>
 
                 <x-button type="submit" variant="primary" class="w-full justify-center">
                     <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Simpan Password Baru
+                    Verifikasi Kode OTP
                 </x-button>
             </form>
 
@@ -125,8 +125,10 @@
                     <button
                         type="submit"
                         :disabled="cooldown > 0"
-                        class="font-medium text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                        <span x-show="cooldown > 0">Kirim Ulang OTP (<span x-text="cooldown"></span>s)</span>
+                        class="inline-flex items-center font-medium text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span x-show="cooldown > 0" class="inline-flex items-center gap-1">
+                            <span>Kirim Ulang OTP (</span><span class="font-mono font-semibold" x-text="formatTime(cooldown)"></span><span>)</span>
+                        </span>
                         <span x-show="cooldown <= 0">Kirim Ulang Kode OTP</span>
                     </button>
                 </form>
